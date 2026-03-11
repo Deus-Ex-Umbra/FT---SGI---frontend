@@ -1,0 +1,161 @@
+import { ClipboardList, Plus, RotateCcw } from 'lucide-react';
+import type { Prestamo, EstadoPrestamo, Herramienta, Estudiante } from '../../tipos/inventario';
+import { formatearFechaHora } from '../../lib/formato-fecha';
+
+interface Props {
+    prestamos: Prestamo[];
+    herramientas: Herramienta[];
+    estudiantes: Estudiante[];
+    onRegistrar: () => void;
+    onDevolver: (prestamo: Prestamo) => void;
+    onExtender: (prestamo: Prestamo) => void;
+    onEditar: (prestamo: Prestamo) => void;
+}
+
+const configEstado: Record<EstadoPrestamo, { etiqueta: string; clase: string }> = {
+    pendiente: {
+        etiqueta: 'Pendiente',
+        clase: 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-950 dark:border-blue-800',
+    },
+    activo: {
+        etiqueta: 'Pendiente',
+        clase: 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-950 dark:border-blue-800',
+    },
+    devuelto: {
+        etiqueta: 'Devuelto',
+        clase: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950 dark:border-emerald-800',
+    },
+    vencido: {
+        etiqueta: 'Vencido',
+        clase: 'text-red-700 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-950 dark:border-red-800',
+    },
+};
+
+export const TablaPrestamos = ({
+    prestamos,
+    herramientas,
+    estudiantes,
+    onRegistrar,
+    onDevolver,
+    onExtender,
+    onEditar,
+}: Props) => {
+    const resolverHerramienta = (id: string) => herramientas.find(h => h.id === id);
+    const resolverEstudiante = (carnet: string) => estudiantes.find(e => e.carnet === carnet);
+
+    const activos = prestamos.filter(p => p.estado === 'activo' || p.estado === 'pendiente').length;
+
+    return (
+        <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4 text-slate-500" />
+                    <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                        Préstamos
+                        <span className="ml-2 text-xs font-normal text-slate-400">({activos} activos · {prestamos.length} totales)</span>
+                    </h2>
+                </div>
+                <button onClick={onRegistrar} className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700">
+                    <Plus className="h-3.5 w-3.5" />
+                    Registrar préstamo
+                </button>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                    <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50">
+                            <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">#</th>
+                            <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Carnet</th>
+                            <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Estudiante</th>
+                            <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Docente</th>
+                            <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Activo Fijo</th>
+                            <th className="px-4 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Fecha préstamo</th>
+                            <th className="px-4 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Fecha devolución</th>
+                            <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Observaciones</th>
+                            <th className="px-4 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Estado</th>
+                            <th className="px-4 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {prestamos.map((p, idx) => {
+                            const herramienta = resolverHerramienta(p.idHerramienta);
+                            const estudiante = resolverEstudiante(p.carnetEstudiante);
+                            const cfg = configEstado[p.estado];
+                            const esVencido = p.estado === 'vencido';
+                            return (
+                                <tr
+                                    key={p.id}
+                                    className={`transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40 ${esVencido ? 'bg-red-50/60 dark:bg-red-950/20' : ''}`}
+                                >
+                                    <td className="px-4 py-2.5 text-slate-400">{idx + 1}</td>
+                                    <td className="px-4 py-2.5 font-mono font-semibold text-blue-600 dark:text-blue-400">{p.carnetEstudiante}</td>
+                                    <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-100">
+                                        <div className="flex items-center gap-2">
+                                            <span>{estudiante ? `${estudiante.apellido}, ${estudiante.nombre}` : '—'}</span>
+                                            {estudiante && (
+                                                <span
+                                                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                                                        estudiante.carnetRetenido
+                                                            ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300'
+                                                            : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                                    }`}
+                                                >
+                                                    {estudiante.carnetRetenido ? 'Carnet retenido' : 'Carnet libre'}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">
+                                        {p.docente}
+                                    </td>
+                                    <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">
+                                        {herramienta ? `[${herramienta.codigoInventario}] ${herramienta.nombre}` : '—'}
+                                    </td>
+                                    <td className="px-4 py-2.5 text-center text-slate-600 dark:text-slate-400">{formatearFechaHora(p.fechaPrestamo)}</td>
+                                    <td className="px-4 py-2.5 text-center text-slate-600 dark:text-slate-400">
+                                        {p.fechaDevolucion ? formatearFechaHora(p.fechaDevolucion) : <span className="text-slate-300 dark:text-slate-600">Pendiente</span>}
+                                    </td>
+                                    <td className="max-w-[160px] truncate px-4 py-2.5 text-slate-500 dark:text-slate-400">
+                                        {p.observaciones || '—'}
+                                    </td>
+                                    <td className="px-4 py-2.5">
+                                        <div className="flex justify-center">
+                                            <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${cfg.clase}`}>
+                                                {cfg.etiqueta}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-2.5">
+                                        <div className="flex justify-center gap-1.5">
+                                            <button
+                                                onClick={() => onEditar(p)}
+                                                className="rounded-md border border-blue-300 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/60"
+                                            >
+                                                Editar
+                                            </button>
+                                            <button
+                                                onClick={() => onExtender(p)}
+                                                disabled={p.estado === 'devuelto'}
+                                                className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300 dark:hover:bg-amber-900/60"
+                                            >
+                                                Extender
+                                            </button>
+                                            <button
+                                                onClick={() => onDevolver(p)}
+                                                disabled={p.estado === 'devuelto'}
+                                                className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                                            >
+                                                <RotateCcw className="h-3 w-3" />
+                                                Devolver
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
