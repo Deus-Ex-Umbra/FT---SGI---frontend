@@ -9,7 +9,7 @@ interface Props {
 }
 
 export const FormularioPrestamo = ({ onCerrar }: Props) => {
-    const { agregarPrestamo, herramientas, estudiantes, docentes } = useInventario();
+    const { agregarPrestamo, herramientas, estudiantes, docentes, prestamos } = useInventario();
     const inicio = ahoraInputLocal();
     const [campos, setCampos] = useState({
         carnetEstudiante: '',
@@ -25,7 +25,15 @@ export const FormularioPrestamo = ({ onCerrar }: Props) => {
     const actualizar = (clave: string, valor: string) =>
         setCampos(prev => ({ ...prev, [clave]: valor }));
 
-    const herramientasDisponibles = herramientas.filter(h => h.estado === 'buen_estado');
+    const idsPrestados = new Set(
+        prestamos
+            .filter((p) => p.estado !== 'devuelto' && p.estado !== 'devuelto_fuera_de_fecha_limite')
+            .map((p) => p.idHerramienta),
+    );
+
+    const herramientasDisponibles = herramientas.filter(
+        (h) => h.estado === 'buen_estado' && !idsPrestados.has(h.id),
+    );
 
     const manejarEnvio = async (e: React.FormEvent) => {
         e.preventDefault();

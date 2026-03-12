@@ -5,6 +5,15 @@ import { FormularioEdicionJerarquia } from './FormularioEdicionJerarquia';
 import { useInventario } from '../../contextos/ContextoInventario';
 import type { PaginaApp } from './MenuLateral';
 import { OPCIONES_ESTADO_FISICO } from '../../lib/estados-activo';
+import type { EstadoPrestamo } from '../../tipos/inventario';
+
+const CLAVE_FILTRO_PRESTAMO_ITEM = 'sgi-filtro-prestamo-item';
+
+interface FiltroPrestamoDesdeActivos {
+    idHerramienta: string;
+    carnetEstudiante: string;
+    estado: EstadoPrestamo;
+}
 
 interface Props {
     contenedores: ContenedorHerramientas[];
@@ -43,13 +52,13 @@ export const JerarquiaActivos = ({ contenedores, onNavegar }: Props) => {
                     camposIniciales={modal.props.campos}
                     onGuardar={async valores => {
                         if (modal.tipo === 'nuevo_contenedor') {
-                            agregarContenedorActivos({ nombre: valores.nombre, ubicacion: valores.ubicacion });
+                            await agregarContenedorActivos({ nombre: valores.nombre, ubicacion: valores.ubicacion });
                         }
                         if (modal.tipo === 'editar_contenedor') {
-                            editarContenedorActivos(modal.idCon!, { nombre: valores.nombre, ubicacion: valores.ubicacion });
+                            await editarContenedorActivos(modal.idCon!, { nombre: valores.nombre, ubicacion: valores.ubicacion });
                         }
                         if (modal.tipo === 'nueva_caja') {
-                            agregarCajaActivo(modal.idCon!, { nombre: valores.nombre, categoria: 'General', descripcion: valores.descripcion, ue: '' });
+                            await agregarCajaActivo(modal.idCon!, { nombre: valores.nombre, categoria: 'General', descripcion: valores.descripcion, ue: '' });
                         }
                         if (modal.tipo === 'editar_instancia') {
                             await editarInstanciaActivo(modal.idCon!, modal.idInst!, {
@@ -60,7 +69,7 @@ export const JerarquiaActivos = ({ contenedores, onNavegar }: Props) => {
                             });
                         }
                         if (modal.tipo === 'nueva_subinstancia') {
-                            agregarSubinstanciaActivo(modal.idCon!, modal.idInst!, {
+                            await agregarSubinstanciaActivo(modal.idCon!, modal.idInst!, {
                                 codigoInventario: valores.codigo,
                                 fechaEntrega: valores.fechaEntrega || undefined,
                                 fechaRetiro: valores.fechaRetiro || undefined,
@@ -218,7 +227,7 @@ export const JerarquiaActivos = ({ contenedores, onNavegar }: Props) => {
                                                         </thead>
                                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                                                             {herramientasFiltradas.flatMap(h => h.subinstancias.map(sub => {
-                                                                const prestamoActivo = prestamos?.find(p => p.idHerramienta === sub.id && (p.estado === 'activo' || p.estado === 'vencido'));
+                                                                const prestamoActivo = prestamos?.find(p => p.idHerramienta === sub.id && (p.estado === 'activo' || p.estado === 'pendiente' || p.estado === 'vencido'));
                                                                 const tc = 6.96;
 
                                                                 return (
@@ -251,7 +260,16 @@ export const JerarquiaActivos = ({ contenedores, onNavegar }: Props) => {
                                                                                         </span>
                                                                                         {onNavegar && (
                                                                                             <button
-                                                                                                onClick={(e) => { e.stopPropagation(); onNavegar('prestamos'); }}
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    const filtro: FiltroPrestamoDesdeActivos = {
+                                                                                                        idHerramienta: sub.id,
+                                                                                                        carnetEstudiante: prestamoActivo.carnetEstudiante,
+                                                                                                        estado: prestamoActivo.estado,
+                                                                                                    };
+                                                                                                    sessionStorage.setItem(CLAVE_FILTRO_PRESTAMO_ITEM, JSON.stringify(filtro));
+                                                                                                    onNavegar('prestamos');
+                                                                                                }}
                                                                                                 className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left leading-tight"
                                                                                             >
                                                                                                 Ver detalle &rarr;
@@ -339,7 +357,7 @@ export const JerarquiaActivos = ({ contenedores, onNavegar }: Props) => {
                                                                     )}
                                                                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
                                                                         {h.subinstancias.map(sub => {
-                                                                            const prestamoActivo = prestamos?.find(p => p.idHerramienta === sub.id && (p.estado === 'activo' || p.estado === 'vencido'));
+                                                                            const prestamoActivo = prestamos?.find(p => p.idHerramienta === sub.id && (p.estado === 'activo' || p.estado === 'pendiente' || p.estado === 'vencido'));
                                                                             const tc = 6.96;
                                                                             const precioBob = (sub.precio || 0).toFixed(2);
                                                                             const precioUsd = ((sub.precio || 0) / tc).toFixed(2);
@@ -404,6 +422,12 @@ export const JerarquiaActivos = ({ contenedores, onNavegar }: Props) => {
                                                                                                         <button
                                                                                                             onClick={(e) => {
                                                                                                                 e.stopPropagation();
+                                                                                                                const filtro: FiltroPrestamoDesdeActivos = {
+                                                                                                                    idHerramienta: sub.id,
+                                                                                                                    carnetEstudiante: prestamoActivo.carnetEstudiante,
+                                                                                                                    estado: prestamoActivo.estado,
+                                                                                                                };
+                                                                                                                sessionStorage.setItem(CLAVE_FILTRO_PRESTAMO_ITEM, JSON.stringify(filtro));
                                                                                                                 onNavegar('prestamos');
                                                                                                             }}
                                                                                                             className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline border-l border-amber-200 dark:border-amber-800 pl-2 ml-1"

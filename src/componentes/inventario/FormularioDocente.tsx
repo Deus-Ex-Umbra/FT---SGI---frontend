@@ -57,6 +57,7 @@ export const FormularioDocente = ({ onCerrar, docente }: Props) => {
                         value={campos.codigo}
                         onChange={e => { setCampos(prev => ({ ...prev, codigo: e.target.value })); setError(''); }}
                         required
+                        title="Código del docente"
                         className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                     />
                 </div>
@@ -67,6 +68,7 @@ export const FormularioDocente = ({ onCerrar, docente }: Props) => {
                         value={campos.nombre}
                         onChange={e => { setCampos(prev => ({ ...prev, nombre: e.target.value })); setError(''); }}
                         required
+                        title="Nombres del docente"
                         className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                     />
                 </div>
@@ -77,6 +79,7 @@ export const FormularioDocente = ({ onCerrar, docente }: Props) => {
                         value={campos.apellido}
                         onChange={e => { setCampos(prev => ({ ...prev, apellido: e.target.value })); setError(''); }}
                         required
+                        title="Apellidos del docente"
                         className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                     />
                 </div>
@@ -98,6 +101,7 @@ export const FormularioDocente = ({ onCerrar, docente }: Props) => {
                         value={campos.carnet}
                         onChange={e => { setCampos(prev => ({ ...prev, carnet: e.target.value })); setError(''); }}
                         required
+                        title="Carnet de identidad del docente"
                         className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                     />
                 </div>

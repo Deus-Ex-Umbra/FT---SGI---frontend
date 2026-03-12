@@ -69,7 +69,7 @@ export const TablaEstudiantes = ({ estudiantes, onRegistrar, onEditar, onElimina
                                         className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
                                     >
                                         <Trash2 className="h-3 w-3" />
-                                        Borrar
+                                        Descartar
                                     </button>
                                 </div>
                             </td>

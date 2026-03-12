@@ -11,7 +11,7 @@ interface Props {
 }
 
 export const FormularioCanastaPrestamo = ({ onCerrar }: Props) => {
-    const { estudiantes, docentes, herramientas, materiales, recargarDatos } = useInventario();
+    const { estudiantes, docentes, herramientas, materiales, prestamos, recargarDatos } = useInventario();
     const inicio = ahoraInputLocal();
 
     const [campos, setCampos] = useState<CanastaPrestamo>({
@@ -30,7 +30,17 @@ export const FormularioCanastaPrestamo = ({ onCerrar }: Props) => {
     const [error, setError] = useState('');
     const [guardando, setGuardando] = useState(false);
 
-    const equiposDisponibles = useMemo(() => herramientas.filter((h) => h.estado !== 'dado_de_baja'), [herramientas]);
+    const equiposPrestados = useMemo(
+        () => new Set(prestamos
+            .filter((p) => p.estado !== 'devuelto' && p.estado !== 'devuelto_fuera_de_fecha_limite')
+            .map((p) => p.idHerramienta)),
+        [prestamos],
+    );
+
+    const equiposDisponibles = useMemo(
+        () => herramientas.filter((h) => h.estado !== 'dado_de_baja' && !equiposPrestados.has(h.id)),
+        [equiposPrestados, herramientas],
+    );
     const lotesConsumibles = useMemo(() => materiales.filter((m) => (m.cantidadDisponible ?? 0) > 0), [materiales]);
 
     const agregarEquipo = () => {
@@ -69,7 +79,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar }: Props) => {
             return;
         }
         if (campos.equipos.length === 0 && campos.consumibles.length === 0) {
-            setError('La canasta debe tener al menos un equipo o un consumible.');
+            setError('La canasta debe tener al menos un activo fijo, un material fungible o ambos.');
             return;
         }
 

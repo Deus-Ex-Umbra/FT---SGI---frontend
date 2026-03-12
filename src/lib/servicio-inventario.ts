@@ -1,4 +1,4 @@
-import type { CanastaPrestamo, ContenedorHerramientas, ContenedorMateriales, Herramienta, KardexMaterial, MaterialFungible, SubinstanciaHerramienta, SubinstanciaMaterial, Estudiante, Docente, Prestamo } from '../tipos/inventario';
+import type { CanastaPrestamo, ContenedorHerramientas, ContenedorMateriales, Herramienta, KardexMaterial, MaterialFungible, SubinstanciaHerramienta, SubinstanciaMaterial, Estudiante, Docente, Prestamo, PrestamoCanastaRegistro } from '../tipos/inventario';
 import { apiDateTimeAInputLocal } from './fecha-local';
 
 const API_BASE = 'http://localhost:3001';
@@ -6,6 +6,11 @@ const API_BASE = 'http://localhost:3001';
 interface ActivoFijoApi {
     id: string | number;
     nombre: string;
+    contenedor?: {
+        id: string | number;
+        nombre: string;
+        ubicacion: string;
+    } | null;
     items?: Array<{
         id: string | number;
         codigoInventario: string;
@@ -24,6 +29,16 @@ interface EditarItemActivoApi {
     estado?: string;
     observaciones?: string;
     justificacion?: string;
+    precio?: number;
+}
+
+interface CrearItemActivoApi {
+    idActivo: number;
+    codigoInventario: string;
+    fechaEntrega?: string | null;
+    fechaRetiro?: string | null;
+    estado?: string;
+    observaciones?: string;
     precio?: number;
 }
 
@@ -48,6 +63,48 @@ interface MaterialApi {
         fechaCaducidad?: string;
         precio?: number;
     }>;
+}
+
+interface ContenedorMaterialApi {
+    id: string | number;
+    nombre: string;
+    ubicacion: string;
+}
+
+interface CrearCajaMaterialApi {
+    idContenedor: number;
+    nombre: string;
+    categoria?: string;
+    descripcion?: string;
+    unidad?: string;
+    stockMinimo?: number;
+}
+
+interface CrearLoteMaterialApi {
+    idMaterial: number;
+    lote: string;
+    fechaEntrega?: string | null;
+    fechaRetiro?: string | null;
+    cantidadDisponible?: number;
+    fechaCaducidad?: string | null;
+    precio?: number;
+}
+
+interface EditarCajaMaterialApi {
+    nombre?: string;
+    categoria?: string;
+    descripcion?: string;
+    unidad?: string;
+    stockMinimo?: number;
+}
+
+interface EditarLoteMaterialApi {
+    lote?: string;
+    fechaEntrega?: string | null;
+    fechaRetiro?: string | null;
+    cantidadDisponible?: number;
+    fechaCaducidad?: string | null;
+    precio?: number;
 }
 
 const soloFecha = (fecha?: string) => (fecha ? String(fecha).slice(0, 10) : undefined);
@@ -75,12 +132,42 @@ interface PrestamoApi {
     id: string | number;
     carnetEstudiante: string;
     idHerramienta: string;
+    grupoCanasta?: string | null;
     fechaPrestamo: string;
     fechaDevolucion?: string | null;
-    estado: 'pendiente' | 'activo' | 'devuelto' | 'vencido';
+    estado: 'pendiente' | 'activo' | 'devuelto' | 'vencido' | 'devuelto_fuera_de_fecha_limite';
     docente: string;
     idDocente?: string | number;
     observaciones?: string;
+}
+
+interface PrestamoCanastaApi {
+    id: string;
+    grupoCanasta?: string | null;
+    idsPrestamo: Array<string | number>;
+    carnetEstudiante: string;
+    idDocente?: string | number;
+    docente: string;
+    fechaPrestamo: string;
+    fechaDevolucion?: string | null;
+    estado: 'pendiente' | 'activo' | 'devuelto' | 'vencido' | 'devuelto_fuera_de_fecha_limite';
+    observaciones?: string;
+    totalActivos?: number;
+    totalConsumibles?: number;
+    totalCosas: number;
+    cosas: Array<{
+        idHerramienta: string;
+        codigoInventario: string;
+        nombre: string;
+    }>;
+    consumibles?: Array<{
+        idLote: number;
+        lote: string;
+        material: string;
+        cantidad: number;
+        motivo: string;
+        fecha: string;
+    }>;
 }
 
 interface CrearPrestamoApi {
@@ -99,7 +186,22 @@ export const cargarActivosDesdeBackend = async (): Promise<ContenedorHerramienta
     if (!resp.ok) throw new Error('No se pudo cargar activos desde backend');
     const fijos = (await resp.json()) as ActivoFijoApi[];
 
-    const herramientas: Herramienta[] = fijos.map((fijo) => {
+    const porContenedor = new Map<string, ContenedorHerramientas>();
+
+    fijos.forEach((fijo) => {
+        const idCont = String(fijo.contenedor?.id ?? '0');
+        const nombreCont = fijo.contenedor?.nombre ?? 'Sin contenedor';
+        const ubicacionCont = fijo.contenedor?.ubicacion ?? 'N/D';
+
+        if (!porContenedor.has(idCont)) {
+            porContenedor.set(idCont, {
+                id: idCont,
+                nombre: nombreCont,
+                ubicacion: ubicacionCont,
+                herramientas: [],
+            });
+        }
+
         const subinstancias: SubinstanciaHerramienta[] = (fijo.items ?? []).map((item) => ({
             id: String(item.id),
             codigoInventario: item.codigoInventario,
@@ -112,7 +214,7 @@ export const cargarActivosDesdeBackend = async (): Promise<ContenedorHerramienta
             precio: Number(item.precio ?? 0),
         }));
 
-        return {
+        const herramienta: Herramienta = {
             id: String(fijo.id),
             nombre: fijo.nombre,
             categoria: 'General',
@@ -120,14 +222,37 @@ export const cargarActivosDesdeBackend = async (): Promise<ContenedorHerramienta
             ue: '',
             subinstancias,
         };
+
+        porContenedor.get(idCont)?.herramientas.push(herramienta);
     });
 
-    return [{
-        id: 'CH-BD-1',
-        nombre: 'Inventario Activos (BD)',
-        ubicacion: 'PostgreSQL',
-        herramientas,
-    }];
+    return Array.from(porContenedor.values());
+};
+
+export const crearContenedorActivoEnBackend = async (payload: { nombre: string; ubicacion: string }): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/activos/contenedores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo crear contenedor de activos');
+    }
+};
+
+export const editarContenedorActivoEnBackend = async (id: string, payload: Partial<{ nombre: string; ubicacion: string }>): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/activos/contenedores/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo editar contenedor de activos');
+    }
 };
 
 export const editarActivoFijoEnBackend = async (id: string, payload: Partial<{ nombre: string }>): Promise<void> => {
@@ -140,6 +265,19 @@ export const editarActivoFijoEnBackend = async (id: string, payload: Partial<{ n
     if (!resp.ok) {
         const txt = await resp.text();
         throw new Error(txt || 'No se pudo editar activo fijo');
+    }
+};
+
+export const crearActivoFijoEnBackend = async (payload: { nombre: string; idContenedor?: number }): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/activos/fijos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo crear activo fijo');
     }
 };
 
@@ -156,12 +294,43 @@ export const editarItemActivoEnBackend = async (id: string, payload: EditarItemA
     }
 };
 
+export const crearItemActivoEnBackend = async (payload: CrearItemActivoApi): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/activos/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo crear item de activo');
+    }
+};
+
 export const cargarMaterialesDesdeBackend = async (): Promise<ContenedorMateriales[]> => {
-    const resp = await fetch(`${API_BASE}/materiales/cajas`);
-    if (!resp.ok) throw new Error('No se pudo cargar materiales desde backend');
-    const materiales = (await resp.json()) as MaterialApi[];
+    const [respContenedores, respCajas] = await Promise.all([
+        fetch(`${API_BASE}/materiales/contenedores`),
+        fetch(`${API_BASE}/materiales/cajas`),
+    ]);
+
+    if (!respContenedores.ok || !respCajas.ok) {
+        throw new Error('No se pudo cargar materiales desde backend');
+    }
+
+    const contenedoresApi = (await respContenedores.json()) as ContenedorMaterialApi[];
+    const materiales = (await respCajas.json()) as MaterialApi[];
 
     const porContenedor = new Map<string, ContenedorMateriales>();
+
+    contenedoresApi.forEach((contenedor) => {
+        const idCont = String(contenedor.id);
+        porContenedor.set(idCont, {
+            id: idCont,
+            nombre: contenedor.nombre,
+            ubicacion: contenedor.ubicacion,
+            materiales: [],
+        });
+    });
 
     materiales.forEach((mat) => {
         const idCont = mat.contenedor?.id ?? 'CM-BD-1';
@@ -204,6 +373,93 @@ export const cargarMaterialesDesdeBackend = async (): Promise<ContenedorMaterial
     return Array.from(porContenedor.values());
 };
 
+export const crearContenedorMaterialEnBackend = async (payload: { nombre: string; ubicacion: string }): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/materiales/contenedores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo crear contenedor de materiales');
+    }
+};
+
+export const crearCajaMaterialEnBackend = async (payload: CrearCajaMaterialApi): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/materiales/cajas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo crear caja de material');
+    }
+};
+
+export const crearLoteMaterialEnBackend = async (payload: CrearLoteMaterialApi): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/materiales/lotes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo crear lote de material');
+    }
+};
+
+export const editarCajaMaterialEnBackend = async (id: string, payload: EditarCajaMaterialApi): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/materiales/cajas/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo editar caja de material');
+    }
+};
+
+export const editarLoteMaterialEnBackend = async (id: string, payload: EditarLoteMaterialApi): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/materiales/lotes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo editar lote de material');
+    }
+};
+
+export const eliminarContenedorMaterialEnBackend = async (id: string): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/materiales/contenedores/${id}`, {
+        method: 'DELETE',
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo eliminar contenedor de materiales');
+    }
+};
+
+export const eliminarCajaMaterialEnBackend = async (id: string): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/materiales/cajas/${id}`, {
+        method: 'DELETE',
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo eliminar caja de material');
+    }
+};
+
 export const cargarEstudiantesDesdeBackend = async (): Promise<Estudiante[]> => {
     const resp = await fetch(`${API_BASE}/prestamos/estudiantes`);
     if (!resp.ok) throw new Error('No se pudo cargar estudiantes desde backend');
@@ -244,11 +500,47 @@ export const cargarPrestamosDesdeBackend = async (): Promise<Prestamo[]> => {
         id: String(p.id),
         carnetEstudiante: p.carnetEstudiante,
         idHerramienta: p.idHerramienta,
+        grupoCanasta: p.grupoCanasta ?? null,
         fechaPrestamo: normalizarFechaHora(p.fechaPrestamo) ?? p.fechaPrestamo,
         fechaDevolucion: normalizarFechaHora(p.fechaDevolucion ?? undefined),
-        estado: p.estado === 'activo' ? 'pendiente' : p.estado,
+        estado: p.estado,
         docente: p.docente,
         observaciones: p.observaciones ?? '',
+    }));
+};
+
+export const cargarCanastasPrestamoDesdeBackend = async (): Promise<PrestamoCanastaRegistro[]> => {
+    const resp = await fetch(`${API_BASE}/prestamos/canastas`);
+    if (!resp.ok) throw new Error('No se pudo cargar canastas de préstamos desde backend');
+    const data = (await resp.json()) as PrestamoCanastaApi[];
+
+    return data.map((c) => ({
+        id: String(c.id),
+        grupoCanasta: c.grupoCanasta ?? null,
+        idsPrestamo: (c.idsPrestamo ?? []).map((id) => String(id)),
+        carnetEstudiante: c.carnetEstudiante,
+        idDocente: c.idDocente != null ? String(c.idDocente) : undefined,
+        docente: c.docente,
+        fechaPrestamo: normalizarFechaHora(c.fechaPrestamo) ?? c.fechaPrestamo,
+        fechaDevolucion: normalizarFechaHora(c.fechaDevolucion ?? undefined),
+        estado: c.estado,
+        observaciones: c.observaciones ?? '',
+        totalActivos: Number(c.totalActivos ?? (c.cosas ?? []).length),
+        totalConsumibles: Number(c.totalConsumibles ?? 0),
+        totalCosas: Number(c.totalCosas ?? 0),
+        cosas: (c.cosas ?? []).map((i) => ({
+            idHerramienta: String(i.idHerramienta),
+            codigoInventario: String(i.codigoInventario ?? ''),
+            nombre: String(i.nombre ?? 'Activo'),
+        })),
+        consumibles: (c.consumibles ?? []).map((i) => ({
+            idLote: Number(i.idLote ?? 0),
+            lote: String(i.lote ?? ''),
+            material: String(i.material ?? 'Material'),
+            cantidad: Number(i.cantidad ?? 0),
+            motivo: String(i.motivo ?? ''),
+            fecha: normalizarFechaHora(i.fecha) ?? String(i.fecha ?? ''),
+        })),
     }));
 };
 
@@ -267,9 +559,10 @@ export const crearPrestamoEnBackend = async (payload: CrearPrestamoApi): Promise
         id: String(p.id),
         carnetEstudiante: p.carnetEstudiante,
         idHerramienta: p.idHerramienta,
+        grupoCanasta: p.grupoCanasta ?? null,
         fechaPrestamo: normalizarFechaHora(p.fechaPrestamo) ?? p.fechaPrestamo,
         fechaDevolucion: normalizarFechaHora(p.fechaDevolucion ?? undefined),
-        estado: p.estado === 'activo' ? 'pendiente' : p.estado,
+        estado: p.estado,
         docente: p.docente,
         observaciones: p.observaciones ?? '',
     };
@@ -284,7 +577,7 @@ export const editarPrestamoEnBackend = async (
         fechaDevolucion: string | null;
         observaciones: string;
         idDocente: number;
-        estado: 'pendiente' | 'devuelto' | 'vencido' | 'activo'
+        estado: 'pendiente' | 'devuelto' | 'vencido' | 'activo' | 'devuelto_fuera_de_fecha_limite'
     }>,
 ): Promise<Prestamo> => {
     const resp = await fetch(`${API_BASE}/prestamos/${id}`, {
@@ -301,9 +594,10 @@ export const editarPrestamoEnBackend = async (
         id: String(p.id),
         carnetEstudiante: p.carnetEstudiante,
         idHerramienta: p.idHerramienta,
+        grupoCanasta: p.grupoCanasta ?? null,
         fechaPrestamo: normalizarFechaHora(p.fechaPrestamo) ?? p.fechaPrestamo,
         fechaDevolucion: normalizarFechaHora(p.fechaDevolucion ?? undefined),
-        estado: p.estado === 'activo' ? 'pendiente' : p.estado,
+        estado: p.estado,
         docente: p.docente,
         observaciones: p.observaciones ?? '',
     };
@@ -324,9 +618,10 @@ export const extenderPrestamoEnBackend = async (id: string, fechaDevolucion: str
         id: String(p.id),
         carnetEstudiante: p.carnetEstudiante,
         idHerramienta: p.idHerramienta,
+        grupoCanasta: p.grupoCanasta ?? null,
         fechaPrestamo: normalizarFechaHora(p.fechaPrestamo) ?? p.fechaPrestamo,
         fechaDevolucion: normalizarFechaHora(p.fechaDevolucion ?? undefined),
-        estado: p.estado === 'activo' ? 'pendiente' : p.estado,
+        estado: p.estado,
         docente: p.docente,
         observaciones: p.observaciones ?? '',
     };
@@ -343,9 +638,10 @@ export const devolverPrestamoEnBackend = async (id: string): Promise<Prestamo> =
         id: String(p.id),
         carnetEstudiante: p.carnetEstudiante,
         idHerramienta: p.idHerramienta,
+        grupoCanasta: p.grupoCanasta ?? null,
         fechaPrestamo: normalizarFechaHora(p.fechaPrestamo) ?? p.fechaPrestamo,
         fechaDevolucion: normalizarFechaHora(p.fechaDevolucion ?? undefined),
-        estado: p.estado === 'activo' ? 'pendiente' : p.estado,
+        estado: p.estado,
         docente: p.docente,
         observaciones: p.observaciones ?? '',
     };
@@ -373,6 +669,154 @@ export const crearCanastaPrestamoEnBackend = async (payload: CanastaPrestamo): P
     if (!resp.ok) {
         const txt = await resp.text();
         throw new Error(txt || 'No se pudo registrar la canasta de préstamo');
+    }
+};
+
+export const editarCanastaPrestamoEnBackend = async (
+    idCanasta: string,
+    payload: Partial<{
+        carnetEstudiante: string;
+        fechaPrestamo: string;
+        fechaDevolucion: string | null;
+        observaciones: string;
+        idDocente: number;
+        estado: 'pendiente' | 'devuelto' | 'vencido' | 'activo' | 'devuelto_fuera_de_fecha_limite';
+    }>,
+): Promise<PrestamoCanastaRegistro> => {
+    const resp = await fetch(`${API_BASE}/prestamos/canastas/${encodeURIComponent(idCanasta)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo editar la canasta de préstamo');
+    }
+
+    const c = (await resp.json()) as PrestamoCanastaApi;
+    return {
+        id: String(c.id),
+        grupoCanasta: c.grupoCanasta ?? null,
+        idsPrestamo: (c.idsPrestamo ?? []).map((x) => String(x)),
+        carnetEstudiante: c.carnetEstudiante,
+        idDocente: c.idDocente != null ? String(c.idDocente) : undefined,
+        docente: c.docente,
+        fechaPrestamo: normalizarFechaHora(c.fechaPrestamo) ?? c.fechaPrestamo,
+        fechaDevolucion: normalizarFechaHora(c.fechaDevolucion ?? undefined),
+        estado: c.estado,
+        observaciones: c.observaciones ?? '',
+        totalActivos: Number(c.totalActivos ?? (c.cosas ?? []).length),
+        totalConsumibles: Number(c.totalConsumibles ?? 0),
+        totalCosas: Number(c.totalCosas ?? 0),
+        cosas: (c.cosas ?? []).map((i) => ({
+            idHerramienta: String(i.idHerramienta),
+            codigoInventario: String(i.codigoInventario ?? ''),
+            nombre: String(i.nombre ?? 'Activo'),
+        })),
+        consumibles: (c.consumibles ?? []).map((i) => ({
+            idLote: Number(i.idLote ?? 0),
+            lote: String(i.lote ?? ''),
+            material: String(i.material ?? 'Material'),
+            cantidad: Number(i.cantidad ?? 0),
+            motivo: String(i.motivo ?? ''),
+            fecha: normalizarFechaHora(i.fecha) ?? String(i.fecha ?? ''),
+        })),
+    };
+};
+
+export const extenderCanastaPrestamoEnBackend = async (idCanasta: string, fechaDevolucion: string): Promise<PrestamoCanastaRegistro> => {
+    const resp = await fetch(`${API_BASE}/prestamos/canastas/${encodeURIComponent(idCanasta)}/extender`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fechaDevolucion }),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo extender la canasta de préstamo');
+    }
+
+    const c = (await resp.json()) as PrestamoCanastaApi;
+    return {
+        id: String(c.id),
+        grupoCanasta: c.grupoCanasta ?? null,
+        idsPrestamo: (c.idsPrestamo ?? []).map((x) => String(x)),
+        carnetEstudiante: c.carnetEstudiante,
+        idDocente: c.idDocente != null ? String(c.idDocente) : undefined,
+        docente: c.docente,
+        fechaPrestamo: normalizarFechaHora(c.fechaPrestamo) ?? c.fechaPrestamo,
+        fechaDevolucion: normalizarFechaHora(c.fechaDevolucion ?? undefined),
+        estado: c.estado,
+        observaciones: c.observaciones ?? '',
+        totalActivos: Number(c.totalActivos ?? (c.cosas ?? []).length),
+        totalConsumibles: Number(c.totalConsumibles ?? 0),
+        totalCosas: Number(c.totalCosas ?? 0),
+        cosas: (c.cosas ?? []).map((i) => ({
+            idHerramienta: String(i.idHerramienta),
+            codigoInventario: String(i.codigoInventario ?? ''),
+            nombre: String(i.nombre ?? 'Activo'),
+        })),
+        consumibles: (c.consumibles ?? []).map((i) => ({
+            idLote: Number(i.idLote ?? 0),
+            lote: String(i.lote ?? ''),
+            material: String(i.material ?? 'Material'),
+            cantidad: Number(i.cantidad ?? 0),
+            motivo: String(i.motivo ?? ''),
+            fecha: normalizarFechaHora(i.fecha) ?? String(i.fecha ?? ''),
+        })),
+    };
+};
+
+export const devolverCanastaPrestamoEnBackend = async (idCanasta: string): Promise<PrestamoCanastaRegistro> => {
+    const resp = await fetch(`${API_BASE}/prestamos/canastas/${encodeURIComponent(idCanasta)}/devolver`, {
+        method: 'POST',
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo marcar devolución de la canasta');
+    }
+
+    const c = (await resp.json()) as PrestamoCanastaApi;
+    return {
+        id: String(c.id),
+        grupoCanasta: c.grupoCanasta ?? null,
+        idsPrestamo: (c.idsPrestamo ?? []).map((x) => String(x)),
+        carnetEstudiante: c.carnetEstudiante,
+        idDocente: c.idDocente != null ? String(c.idDocente) : undefined,
+        docente: c.docente,
+        fechaPrestamo: normalizarFechaHora(c.fechaPrestamo) ?? c.fechaPrestamo,
+        fechaDevolucion: normalizarFechaHora(c.fechaDevolucion ?? undefined),
+        estado: c.estado,
+        observaciones: c.observaciones ?? '',
+        totalActivos: Number(c.totalActivos ?? (c.cosas ?? []).length),
+        totalConsumibles: Number(c.totalConsumibles ?? 0),
+        totalCosas: Number(c.totalCosas ?? 0),
+        cosas: (c.cosas ?? []).map((i) => ({
+            idHerramienta: String(i.idHerramienta),
+            codigoInventario: String(i.codigoInventario ?? ''),
+            nombre: String(i.nombre ?? 'Activo'),
+        })),
+        consumibles: (c.consumibles ?? []).map((i) => ({
+            idLote: Number(i.idLote ?? 0),
+            lote: String(i.lote ?? ''),
+            material: String(i.material ?? 'Material'),
+            cantidad: Number(i.cantidad ?? 0),
+            motivo: String(i.motivo ?? ''),
+            fecha: normalizarFechaHora(i.fecha) ?? String(i.fecha ?? ''),
+        })),
+    };
+};
+
+export const eliminarCanastaPrestamoEnBackend = async (idCanasta: string): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/prestamos/canastas/${encodeURIComponent(idCanasta)}`, {
+        method: 'DELETE',
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo eliminar la canasta de préstamo');
     }
 };
 

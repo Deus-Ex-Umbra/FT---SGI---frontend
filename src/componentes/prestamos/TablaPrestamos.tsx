@@ -18,7 +18,7 @@ const configEstado: Record<EstadoPrestamo, { etiqueta: string; clase: string }> 
         clase: 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-950 dark:border-blue-800',
     },
     activo: {
-        etiqueta: 'Pendiente',
+        etiqueta: 'Activo',
         clase: 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-950 dark:border-blue-800',
     },
     devuelto: {
@@ -28,6 +28,10 @@ const configEstado: Record<EstadoPrestamo, { etiqueta: string; clase: string }> 
     vencido: {
         etiqueta: 'Vencido',
         clase: 'text-red-700 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-950 dark:border-red-800',
+    },
+    devuelto_fuera_de_fecha_limite: {
+        etiqueta: 'Devuelto fuera de fecha limite',
+        clase: 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950 dark:border-amber-800',
     },
 };
 
@@ -135,14 +139,14 @@ export const TablaPrestamos = ({
                                             </button>
                                             <button
                                                 onClick={() => onExtender(p)}
-                                                disabled={p.estado === 'devuelto'}
+                                                disabled={p.estado === 'devuelto' || p.estado === 'devuelto_fuera_de_fecha_limite'}
                                                 className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300 dark:hover:bg-amber-900/60"
                                             >
                                                 Extender
                                             </button>
                                             <button
                                                 onClick={() => onDevolver(p)}
-                                                disabled={p.estado === 'devuelto'}
+                                                disabled={p.estado === 'devuelto' || p.estado === 'devuelto_fuera_de_fecha_limite'}
                                                 className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
                                             >
                                                 <RotateCcw className="h-3 w-3" />

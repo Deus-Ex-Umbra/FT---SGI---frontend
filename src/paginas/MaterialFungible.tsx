@@ -6,7 +6,6 @@ import { BarraFiltros } from '../componentes/layout/BarraFiltros';
 import { TarjetaMetrica } from '../componentes/ui/tarjeta-metrica';
 import { JerarquiaMaterialFungible } from '../componentes/inventario/JerarquiaMaterialFungible';
 import { useInventario } from '../contextos/ContextoInventario';
-import { BotonesAuditoria } from '../componentes/layout/BotonesAuditoria';
 import { cargarKardexMaterialEnBackend } from '../lib/servicio-inventario';
 import type { KardexMaterial } from '../tipos/inventario';
 import { ModalBase } from '../componentes/inventario/ModalBase';
@@ -58,6 +57,7 @@ export const MaterialFungible = ({ onNavegar, onCerrarSesion }: Props) => {
 
     const contenedoresFiltrados = contenedoresMateriales.filter(c => {
         const term = busqueda.toLowerCase();
+        const filtroFechaActivo = !!fechaDesde || !!fechaHasta;
 
         // Filtro por bajo stock: Si soloBajoStock está activo, el contenedor debe tener al menos un material bajo stock
         const tieneBajoStock = !soloBajoStock || c.materiales.some(m => {
@@ -67,9 +67,10 @@ export const MaterialFungible = ({ onNavegar, onCerrarSesion }: Props) => {
 
         if (!tieneBajoStock) return false;
 
-        const tieneFechaEnRango = c.materiales.some(m => m.subinstancias.some(sub => fechaEnRango(sub.fechaRetiro || sub.fechaEntrega)));
-
-        if (!tieneFechaEnRango) return false;
+        if (filtroFechaActivo) {
+            const tieneFechaEnRango = c.materiales.some(m => m.subinstancias.some(sub => fechaEnRango(sub.fechaRetiro || sub.fechaEntrega)));
+            if (!tieneFechaEnRango) return false;
+        }
 
         if (!term) return true;
         if (c.nombre.toLowerCase().includes(term) || c.ubicacion.toLowerCase().includes(term)) return true;
@@ -81,75 +82,6 @@ export const MaterialFungible = ({ onNavegar, onCerrarSesion }: Props) => {
         );
     });
 
-    const itemsFiltrados = contenedoresFiltrados.flatMap(c =>
-        c.materiales.flatMap(m =>
-            m.subinstancias
-                .filter(sub => {
-                    return fechaEnRango(sub.fechaRetiro || sub.fechaEntrega);
-                })
-                .map(sub => ({ contenedor: c.nombre, material: m, sub }))
-        )
-    );
-
-    const descargarExcelMateriales = () => {
-        const encabezados = ['Contenedor', 'Articulo', 'Categoria', 'Item', 'FechaEntrega', 'FechaRetiro', 'Unidad', 'Cantidad', 'PrecioUnitario', 'Caducidad'];
-        const filas = itemsFiltrados.map(({ contenedor, material, sub }) => [
-            contenedor,
-            material.nombre,
-            material.categoria,
-            sub.lote,
-            sub.fechaEntrega ?? '',
-            sub.fechaRetiro ?? '',
-            material.unidad,
-            sub.cantidadDisponible,
-            sub.precio ?? 0,
-            sub.fechaCaducidad ?? ''
-        ]);
-
-        const csv = [encabezados, ...filas]
-            .map(fila => fila.map(valor => `"${String(valor).replace(/"/g, '""')}"`).join(';'))
-            .join('\n');
-
-        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `auditoria_materiales_filtrados_${new Date().toISOString().slice(0, 10)}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
-
-    const generarPdfMateriales = () => {
-        const filas = itemsFiltrados.map(({ contenedor, material, sub }) => `
-            <tr>
-                <td>${contenedor}</td>
-                <td>${material.nombre}</td>
-                <td>${material.categoria}</td>
-                <td>${sub.lote}</td>
-                <td>${sub.fechaEntrega ?? '-'}</td>
-                <td>${sub.fechaRetiro ?? '-'}</td>
-                <td>${material.unidad}</td>
-                <td>${sub.cantidadDisponible}</td>
-                <td>${sub.precio ?? 0}</td>
-                <td>${sub.fechaCaducidad ?? '-'}</td>
-            </tr>
-        `).join('');
-
-        const ventana = window.open('', '_blank', 'width=1200,height=800');
-        if (!ventana) return;
-        ventana.document.write(`
-            <html><head><title>Auditoria Materiales</title>
-            <style>body{font-family:Arial;padding:24px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #d1d5db;padding:6px;text-align:left}th{background:#f3f4f6}</style>
-            </head><body>
-            <h1>Reporte de Auditoria - Materiales Fungibles</h1>
-            <p>Generado: ${new Date().toLocaleString('es-BO')} · Registros: ${itemsFiltrados.length}</p>
-            <table><thead><tr><th>Contenedor</th><th>Artículo</th><th>Categoría</th><th>Item</th><th>Entrega</th><th>Retiro</th><th>Unidad</th><th>Cantidad</th><th>Precio</th><th>Caducidad</th></tr></thead><tbody>${filas}</tbody></table>
-            </body></html>
-        `);
-        ventana.document.close();
-        ventana.focus();
-        ventana.print();
-    };
 
     return (
         <LayoutPagina
@@ -198,8 +130,6 @@ export const MaterialFungible = ({ onNavegar, onCerrarSesion }: Props) => {
                     className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                     title="Fecha hasta"
                 />
-                <BotonesAuditoria onExcel={descargarExcelMateriales} onPdf={generarPdfMateriales} />
-
                 <button
                     onClick={() => setVistaBackend(!vistaBackend)}
                     className="ml-auto rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500"

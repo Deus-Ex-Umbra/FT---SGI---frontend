@@ -1,5 +1,5 @@
 export type EstadoHerramienta = 'buen_estado' | 'regular' | 'en_mantenimiento' | 'en_prestamo' | 'revision' | 'dado_de_baja' | 'danado';
-export type EstadoPrestamo = 'pendiente' | 'devuelto' | 'vencido' | 'activo';
+export type EstadoPrestamo = 'pendiente' | 'devuelto' | 'vencido' | 'activo' | 'devuelto_fuera_de_fecha_limite';
 
 export interface SubinstanciaHerramienta {
     id: string;
@@ -58,11 +58,41 @@ export interface Prestamo {
     id: string;
     carnetEstudiante: string;
     idHerramienta: string;
+    grupoCanasta?: string | null;
     fechaPrestamo: string;
     fechaDevolucion: string | null;
     estado: EstadoPrestamo;
     docente: string;
     observaciones: string;
+}
+
+export interface PrestamoCanastaRegistro {
+    id: string;
+    grupoCanasta: string | null;
+    idsPrestamo: string[];
+    carnetEstudiante: string;
+    idDocente?: string;
+    docente: string;
+    fechaPrestamo: string;
+    fechaDevolucion: string | null;
+    estado: EstadoPrestamo;
+    observaciones: string;
+    totalActivos: number;
+    totalConsumibles: number;
+    totalCosas: number;
+    cosas: Array<{
+        idHerramienta: string;
+        codigoInventario: string;
+        nombre: string;
+    }>;
+    consumibles: Array<{
+        idLote: number;
+        lote: string;
+        material: string;
+        cantidad: number;
+        motivo: string;
+        fecha: string;
+    }>;
 }
 
 export interface SubinstanciaMaterial {

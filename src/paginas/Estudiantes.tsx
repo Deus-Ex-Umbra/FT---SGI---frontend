@@ -35,12 +35,12 @@ export const Estudiantes = ({ onNavegar, onCerrarSesion }: Props) => {
 
     const borrar = async (estudiante: (typeof estudiantes)[number]) => {
         if (!estudiante.id) return;
-        const ok = window.confirm(`¿Deseas borrar al estudiante ${estudiante.nombre} ${estudiante.apellido}?`);
+        const ok = window.confirm(`¿Deseas descartar al estudiante ${estudiante.nombre} ${estudiante.apellido}? (borrado blando)`);
         if (!ok) return;
         try {
             await eliminarEstudiante(estudiante.id);
         } catch (err: any) {
-            window.alert(err?.message ?? 'No se pudo borrar el estudiante.');
+            window.alert(err?.message ?? 'No se pudo descartar el estudiante.');
         }
     };
 

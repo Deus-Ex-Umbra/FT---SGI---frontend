@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Package, Plus, ChevronRight, ChevronDown, Layers, AlertTriangle, Edit2, Search, FileText, List as ListIcon, Table as TableIcon } from 'lucide-react';
+import { Package, Plus, ChevronRight, ChevronDown, Layers, AlertTriangle, Edit2, Search, FileText, List as ListIcon, Table as TableIcon, Trash2 } from 'lucide-react';
 import type { ContenedorMateriales, MaterialFungible } from '../../tipos/inventario';
 import { FormularioEdicionJerarquia } from './FormularioEdicionJerarquia';
 import { useInventario } from '../../contextos/ContextoInventario';
@@ -11,7 +11,7 @@ interface Props {
 export const JerarquiaMaterialFungible = ({ contenedores }: Props) => {
     const {
         agregarContenedorMateriales, editarContenedorMateriales, agregarCajaMateriales, editarInstanciaMaterial,
-        agregarSubinstanciaMaterial, editarSubinstanciaMaterial
+        eliminarContenedorMateriales, agregarSubinstanciaMaterial, editarSubinstanciaMaterial, eliminarInstanciaMaterial
     } = useInventario();
 
     const [contenedoresExpandidos, setContenedoresExpandidos] = useState<Record<string, boolean>>({});
@@ -36,16 +36,16 @@ export const JerarquiaMaterialFungible = ({ contenedores }: Props) => {
                 <FormularioEdicionJerarquia
                     titulo={modal.props.titulo}
                     camposIniciales={modal.props.campos}
-                    onGuardar={valores => {
-                        if (modal.tipo === 'nuevo_contenedor') agregarContenedorMateriales({ nombre: valores.nombre, ubicacion: valores.ubicacion });
+                    onGuardar={async valores => {
+                        if (modal.tipo === 'nuevo_contenedor') await agregarContenedorMateriales({ nombre: valores.nombre, ubicacion: valores.ubicacion });
                         if (modal.tipo === 'editar_contenedor') editarContenedorMateriales(modal.idCon!, { nombre: valores.nombre, ubicacion: valores.ubicacion });
-                        if (modal.tipo === 'nueva_caja') agregarCajaMateriales(modal.idCon!, { nombre: valores.nombre, categoria: 'Fungible', descripcion: valores.descripcion, unidad: 'Unidades', stockMinimo: 0 });
-                        if (modal.tipo === 'editar_instancia') editarInstanciaMaterial(modal.idCon!, modal.idInst!, { nombre: valores.nombre, descripcion: valores.descripcion });
+                        if (modal.tipo === 'nueva_caja') await agregarCajaMateriales(modal.idCon!, { nombre: valores.nombre, categoria: 'Fungible', descripcion: valores.descripcion, unidad: 'Unidades', stockMinimo: 0 });
+                        if (modal.tipo === 'editar_instancia') await editarInstanciaMaterial(modal.idCon!, modal.idInst!, { nombre: valores.nombre, descripcion: valores.descripcion });
                         if (modal.tipo === 'nueva_subinstancia') {
                             if (valores.unidad?.trim()) {
-                                editarInstanciaMaterial(modal.idCon!, modal.idInst!, { unidad: valores.unidad.trim() });
+                                await editarInstanciaMaterial(modal.idCon!, modal.idInst!, { unidad: valores.unidad.trim() });
                             }
-                            agregarSubinstanciaMaterial(modal.idCon!, modal.idInst!, {
+                            await agregarSubinstanciaMaterial(modal.idCon!, modal.idInst!, {
                                 lote: valores.lote,
                                 fechaEntrega: valores.fechaEntrega || undefined,
                                 fechaRetiro: valores.fechaRetiro || undefined,
@@ -56,9 +56,9 @@ export const JerarquiaMaterialFungible = ({ contenedores }: Props) => {
                         }
                         if (modal.tipo === 'editar_subinstancia') {
                             if (valores.unidad?.trim()) {
-                                editarInstanciaMaterial(modal.idCon!, modal.idInst!, { unidad: valores.unidad.trim() });
+                                await editarInstanciaMaterial(modal.idCon!, modal.idInst!, { unidad: valores.unidad.trim() });
                             }
-                            editarSubinstanciaMaterial(modal.idCon!, modal.idInst!, modal.idSub!, {
+                            await editarSubinstanciaMaterial(modal.idCon!, modal.idInst!, modal.idSub!, {
                                 lote: valores.lote,
                                 fechaEntrega: valores.fechaEntrega || undefined,
                                 fechaRetiro: valores.fechaRetiro || undefined,
@@ -144,10 +144,21 @@ export const JerarquiaMaterialFungible = ({ contenedores }: Props) => {
                                         <TableIcon className="h-3.5 w-3.5" />
                                     </button>
                                 </div>
-                                <button onClick={() => setModal({
+                                <button title="Editar contenedor" onClick={() => setModal({
                                     tipo: 'editar_contenedor', idCon: c.id,
                                     props: { titulo: 'Editar Contenedor', campos: [{ key: 'nombre', label: 'Nombre', value: c.nombre }, { key: 'ubicacion', label: 'Ubicación', value: c.ubicacion }] }
                                 })} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 transition-colors ml-1"><Edit2 className="h-4 w-4" /></button>
+                                <button
+                                    title="Eliminar contenedor"
+                                    onClick={async () => {
+                                        if (confirm(`¿Eliminar el contenedor "${c.nombre}" y todas sus cajas?`)) {
+                                            await eliminarContenedorMateriales(c.id);
+                                        }
+                                    }}
+                                    className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </button>
                             </div>
                         </div>
 
@@ -231,7 +242,7 @@ export const JerarquiaMaterialFungible = ({ contenedores }: Props) => {
                                                                             </div>
                                                                         </td>
                                                                         <td className="px-4 py-3 text-center">
-                                                                            <button onClick={() => setModal({
+                                                                            <button title="Editar item" onClick={() => setModal({
                                                                                 tipo: 'editar_subinstancia', idCon: c.id, idInst: m.id, idSub: sub.id,
                                                                                 props: { titulo: 'Editar item', campos: [{ key: 'lote', label: 'Código item', value: sub.lote }, { key: 'unidad', label: 'Unidad de medida', value: m.unidad || '' }, { key: 'fechaEntrega', label: 'Fecha entrega', value: sub.fechaEntrega || '', type: 'date', required: false }, { key: 'fechaRetiro', label: 'Fecha retiro', value: sub.fechaRetiro || '', type: 'date', required: false }, { key: 'cantidad', label: 'Cantidad', value: sub.cantidadDisponible.toString(), type: 'number' }, { key: 'precio', label: 'Precio Unitario (Bs.)', value: sub.precio?.toString() || '0', type: 'number' }, { key: 'caducidad', label: 'Caducidad (opcional)', value: sub.fechaCaducidad || '', type: 'date', required: false }] }
                                                                             })} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors inline-flex"><Edit2 className="h-4 w-4" /></button>
@@ -277,10 +288,21 @@ export const JerarquiaMaterialFungible = ({ contenedores }: Props) => {
                                                                             Bs. {m.subinstancias.reduce((acc, sub) => acc + (sub.cantidadDisponible * (sub.precio || 0)), 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
                                                                         </span>
                                                                         <div className="flex items-center gap-1 ml-1 border-l pl-2 dark:border-slate-700 border-slate-200">
-                                                                            <button onClick={() => setModal({
+                                                                            <button title="Editar caja" onClick={() => setModal({
                                                                                 tipo: 'editar_instancia', idCon: c.id, idInst: m.id,
                                                                                 props: { titulo: 'Editar Caja', campos: [{ key: 'nombre', label: 'Nombre de Caja', value: m.nombre }, { key: 'descripcion', label: 'Descripción', value: m.descripcion || '' }] }
                                                                             })} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-400 transition-colors"><Edit2 className="h-4 w-4" /></button>
+                                                                            <button
+                                                                                title="Eliminar caja"
+                                                                                onClick={async () => {
+                                                                                    if (confirm(`¿Eliminar la caja "${m.nombre}" y sus items?`)) {
+                                                                                        await eliminarInstanciaMaterial(c.id, m.id);
+                                                                                    }
+                                                                                }}
+                                                                                className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                                                                            >
+                                                                                <Trash2 className="h-4 w-4" />
+                                                                            </button>
                                                                             <button onClick={() => setModal({
                                                                                 tipo: 'nueva_subinstancia', idCon: c.id, idInst: m.id,
                                                                                 props: { titulo: 'Crear item', campos: [{ key: 'lote', label: 'Código item', value: '' }, { key: 'unidad', label: 'Unidad de medida', value: m.unidad || '' }, { key: 'fechaEntrega', label: 'Fecha entrega', value: '', type: 'date', required: false }, { key: 'fechaRetiro', label: 'Fecha retiro', value: '', type: 'date', required: false }, { key: 'cantidad', label: 'Cantidad', value: '0', type: 'number' }, { key: 'precio', label: 'Precio Unitario (Bs.)', value: '0', type: 'number' }, { key: 'caducidad', label: 'Fecha de Caducidad (opcional)', value: '', type: 'date', required: false }] }
@@ -323,7 +345,7 @@ export const JerarquiaMaterialFungible = ({ contenedores }: Props) => {
                                                                                                 </div>
                                                                                             </div>
                                                                                             <div className="flex items-center gap-2">
-                                                                                                <button onClick={() => setModal({
+                                                                                                <button title="Editar item" onClick={() => setModal({
                                                                                                     tipo: 'editar_subinstancia', idCon: c.id, idInst: m.id, idSub: sub.id,
                                                                                                     props: { titulo: 'Editar item', campos: [{ key: 'lote', label: 'Código item', value: sub.lote }, { key: 'unidad', label: 'Unidad de medida', value: m.unidad || '' }, { key: 'fechaEntrega', label: 'Fecha entrega', value: sub.fechaEntrega || '', type: 'date', required: false }, { key: 'fechaRetiro', label: 'Fecha retiro', value: sub.fechaRetiro || '', type: 'date', required: false }, { key: 'cantidad', label: 'Cantidad', value: sub.cantidadDisponible.toString(), type: 'number' }, { key: 'precio', label: 'Precio Unitario (Bs.)', value: sub.precio?.toString() || '0', type: 'number' }, { key: 'caducidad', label: 'Caducidad (opcional)', value: sub.fechaCaducidad || '', type: 'date', required: false }] }
                                                                                                 })} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-emerald-600 transition-colors"><Edit2 className="h-3.5 w-3.5" /></button>

@@ -5,10 +5,6 @@ import type {
     Estudiante, Prestamo, Docente
 } from '../tipos/inventario';
 import {
-    contenedoresHerramientas as datoCH,
-    contenedoresMateriales as datoCM,
-} from '../lib/datos-inventario';
-import {
     cargarActivosDesdeBackend,
     cargarMaterialesDesdeBackend,
     cargarPrestamosDesdeBackend,
@@ -26,6 +22,17 @@ import {
     devolverPrestamoEnBackend,
     editarActivoFijoEnBackend,
     editarItemActivoEnBackend,
+    crearActivoFijoEnBackend,
+    crearItemActivoEnBackend,
+    crearContenedorActivoEnBackend,
+    editarContenedorActivoEnBackend,
+    crearContenedorMaterialEnBackend,
+    crearCajaMaterialEnBackend,
+    crearLoteMaterialEnBackend,
+    editarCajaMaterialEnBackend,
+    editarLoteMaterialEnBackend,
+    eliminarContenedorMaterialEnBackend,
+    eliminarCajaMaterialEnBackend,
 } from '../lib/servicio-inventario';
 
 interface ContextoInventarioTipo {
@@ -51,20 +58,22 @@ interface ContextoInventarioTipo {
     recargarDatos: () => Promise<void>;
 
     // Jerarquías Activos
-    agregarContenedorActivos: (datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => void;
-    editarContenedorActivos: (id: string, datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => void;
-    agregarCajaActivo: (idContenedor: string, datos: Omit<Herramienta, 'id' | 'subinstancias'>) => void;
+    agregarContenedorActivos: (datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => Promise<void>;
+    editarContenedorActivos: (id: string, datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => Promise<void>;
+    agregarCajaActivo: (idContenedor: string, datos: Omit<Herramienta, 'id' | 'subinstancias'>) => Promise<void>;
     editarInstanciaActivo: (idContenedor: string, idHerramienta: string, datos: Partial<Omit<Herramienta, 'id' | 'subinstancias'>>) => Promise<void>;
-    agregarSubinstanciaActivo: (idContenedor: string, idHerramienta: string, datos: Omit<SubinstanciaHerramienta, 'id'>) => void;
+    agregarSubinstanciaActivo: (idContenedor: string, idHerramienta: string, datos: Omit<SubinstanciaHerramienta, 'id'>) => Promise<void>;
     editarSubinstanciaActivo: (idContenedor: string, idHerramienta: string, idSub: string, datos: Omit<SubinstanciaHerramienta, 'id'>) => Promise<void>;
 
     // Jerarquías Materiales
-    agregarContenedorMateriales: (datos: Omit<ContenedorMateriales, 'id' | 'materiales'>) => void;
+    agregarContenedorMateriales: (datos: Omit<ContenedorMateriales, 'id' | 'materiales'>) => Promise<void>;
     editarContenedorMateriales: (id: string, datos: Omit<ContenedorMateriales, 'id' | 'materiales'>) => void;
-    agregarCajaMateriales: (idContenedor: string, datos: Omit<MaterialFungible, 'id' | 'subinstancias'>) => void;
-    editarInstanciaMaterial: (idContenedor: string, idMaterial: string, datos: Partial<Omit<MaterialFungible, 'id' | 'subinstancias'>>) => void;
-    agregarSubinstanciaMaterial: (idContenedor: string, idMaterial: string, datos: Omit<SubinstanciaMaterial, 'id'>) => void;
-    editarSubinstanciaMaterial: (idContenedor: string, idMaterial: string, idSub: string, datos: Omit<SubinstanciaMaterial, 'id'>) => void;
+    eliminarContenedorMateriales: (id: string) => Promise<void>;
+    agregarCajaMateriales: (idContenedor: string, datos: Omit<MaterialFungible, 'id' | 'subinstancias'>) => Promise<void>;
+    editarInstanciaMaterial: (idContenedor: string, idMaterial: string, datos: Partial<Omit<MaterialFungible, 'id' | 'subinstancias'>>) => Promise<void>;
+    eliminarInstanciaMaterial: (idContenedor: string, idMaterial: string) => Promise<void>;
+    agregarSubinstanciaMaterial: (idContenedor: string, idMaterial: string, datos: Omit<SubinstanciaMaterial, 'id'>) => Promise<void>;
+    editarSubinstanciaMaterial: (idContenedor: string, idMaterial: string, idSub: string, datos: Omit<SubinstanciaMaterial, 'id'>) => Promise<void>;
 }
 
 const ContextoInventario = createContext<ContextoInventarioTipo | null>(null);
@@ -76,8 +85,8 @@ export const useInventario = () => {
 };
 
 export const ProveedorInventario = ({ children }: { children: React.ReactNode }) => {
-    const [contenedoresHerramientas, setContenedoresHerramientas] = useState<ContenedorHerramientas[]>(datoCH);
-    const [contenedoresMateriales, setContenedoresMateriales] = useState<ContenedorMateriales[]>(datoCM);
+    const [contenedoresHerramientas, setContenedoresHerramientas] = useState<ContenedorHerramientas[]>([]);
+    const [contenedoresMateriales, setContenedoresMateriales] = useState<ContenedorMateriales[]>([]);
     const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
     const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
     const [docentes, setDocentes] = useState<Docente[]>([]);
@@ -92,13 +101,15 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
                     cargarDocentesDesdeBackend(),
                 ]);
 
-                if (activosBd.length > 0) setContenedoresHerramientas(activosBd);
-                if (materialesBd.length > 0) setContenedoresMateriales(materialesBd);
+                setContenedoresHerramientas(activosBd);
+                setContenedoresMateriales(materialesBd);
                 setPrestamos(prestamosBd);
                 setEstudiantes(estudiantesBd);
                 setDocentes(docentesBd);
             } catch {
                 // Si backend no responde, estas páginas quedan vacías para evitar mostrar datos mock.
+                setContenedoresHerramientas([]);
+                setContenedoresMateriales([]);
                 setPrestamos([]);
                 setEstudiantes([]);
                 setDocentes([]);
@@ -209,7 +220,7 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
             fechaDevolucion: string | null;
             observaciones: string;
             idDocente: number;
-            estado: 'pendiente' | 'devuelto' | 'vencido' | 'activo'
+            estado: 'pendiente' | 'devuelto' | 'vencido' | 'activo' | 'devuelto_fuera_de_fecha_limite'
         }> = {};
 
         if (datos.carnetEstudiante !== undefined) payload.carnetEstudiante = datos.carnetEstudiante;
@@ -282,14 +293,38 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
     };
 
     // Funciones CRUD para Activos Fijos
-    const agregarContenedorActivos = (datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => {
-        const id = `CH${Date.now()}`;
-        setContenedoresHerramientas(prev => [...prev, { ...datos, id, herramientas: [] }]);
+    const agregarContenedorActivos = async (datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => {
+        const nombre = datos.nombre?.trim();
+        const ubicacion = datos.ubicacion?.trim();
+        if (!nombre || !ubicacion) return;
+
+        await crearContenedorActivoEnBackend({ nombre, ubicacion });
+        const activosBd = await cargarActivosDesdeBackend();
+        setContenedoresHerramientas(activosBd);
     };
-    const editarContenedorActivos = (id: string, datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => {
+    const editarContenedorActivos = async (id: string, datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => {
+        if (esNumero(id)) {
+            await editarContenedorActivoEnBackend(id, {
+                nombre: datos.nombre,
+                ubicacion: datos.ubicacion,
+            });
+            const activosBd = await cargarActivosDesdeBackend();
+            setContenedoresHerramientas(activosBd);
+            return;
+        }
+
         setContenedoresHerramientas(prev => prev.map(c => c.id === id ? { ...c, ...datos } : c));
     };
-    const agregarCajaActivo = (idContenedor: string, datos: Omit<Herramienta, 'id' | 'subinstancias'>) => {
+    const agregarCajaActivo = async (idContenedor: string, datos: Omit<Herramienta, 'id' | 'subinstancias'>) => {
+        if (esNumero(idContenedor)) {
+            const nombre = datos.nombre?.trim();
+            if (!nombre) return;
+            await crearActivoFijoEnBackend({ nombre, idContenedor: Number(idContenedor) });
+            const activosBd = await cargarActivosDesdeBackend();
+            setContenedoresHerramientas(activosBd);
+            return;
+        }
+
         setContenedoresHerramientas(prev => prev.map(c => c.id === idContenedor ? {
             ...c,
             herramientas: [...c.herramientas, { ...datos, id: `H${Date.now()}`, subinstancias: [] }]
@@ -298,7 +333,7 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
     const esNumero = (valor: string) => /^\d+$/.test(valor);
 
     const editarInstanciaActivo = async (idContenedor: string, idHerramienta: string, datos: Partial<Omit<Herramienta, 'id' | 'subinstancias'>>) => {
-        if (idContenedor === 'CH-BD-1' && esNumero(idHerramienta) && typeof datos.nombre === 'string') {
+        if (esNumero(idContenedor) && esNumero(idHerramienta) && typeof datos.nombre === 'string') {
             await editarActivoFijoEnBackend(idHerramienta, { nombre: datos.nombre });
             const activosBd = await cargarActivosDesdeBackend();
             if (activosBd.length > 0) {
@@ -312,7 +347,22 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
             herramientas: c.herramientas.map(h => h.id === idHerramienta ? { ...h, ...datos } : h)
         } : c));
     };
-    const agregarSubinstanciaActivo = (idContenedor: string, idHerramienta: string, datos: Omit<SubinstanciaHerramienta, 'id'>) => {
+    const agregarSubinstanciaActivo = async (idContenedor: string, idHerramienta: string, datos: Omit<SubinstanciaHerramienta, 'id'>) => {
+        if (esNumero(idContenedor) && esNumero(idHerramienta)) {
+            await crearItemActivoEnBackend({
+                idActivo: Number(idHerramienta),
+                codigoInventario: datos.codigoInventario,
+                fechaEntrega: datos.fechaEntrega ?? null,
+                fechaRetiro: datos.fechaRetiro ?? null,
+                estado: datos.estado,
+                observaciones: datos.observaciones,
+                precio: Number(datos.precio ?? 0),
+            });
+            const activosBd = await cargarActivosDesdeBackend();
+            setContenedoresHerramientas(activosBd);
+            return;
+        }
+
         setContenedoresHerramientas(prev => prev.map(c => c.id === idContenedor ? {
             ...c,
             herramientas: c.herramientas.map(h => h.id === idHerramienta ? {
@@ -322,7 +372,7 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
         } : c));
     };
     const editarSubinstanciaActivo = async (idContenedor: string, idHerramienta: string, idSub: string, datos: Omit<SubinstanciaHerramienta, 'id'>) => {
-        if (idContenedor === 'CH-BD-1' && esNumero(idSub)) {
+        if (esNumero(idContenedor) && esNumero(idSub)) {
             await editarItemActivoEnBackend(idSub, {
                 codigoInventario: datos.codigoInventario,
                 fechaEntrega: datos.fechaEntrega ?? null,
@@ -349,26 +399,96 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
     };
 
     // Funciones CRUD para Material Fungible
-    const agregarContenedorMateriales = (datos: Omit<ContenedorMateriales, 'id' | 'materiales'>) => {
-        const id = `CM${Date.now()}`;
-        setContenedoresMateriales(prev => [...prev, { ...datos, id, materiales: [] }]);
+    const agregarContenedorMateriales = async (datos: Omit<ContenedorMateriales, 'id' | 'materiales'>) => {
+        const nombre = datos.nombre?.trim();
+        const ubicacion = datos.ubicacion?.trim();
+        if (!nombre || !ubicacion) return;
+
+        await crearContenedorMaterialEnBackend({ nombre, ubicacion });
+        const materialesBd = await cargarMaterialesDesdeBackend();
+        setContenedoresMateriales(materialesBd);
     };
     const editarContenedorMateriales = (id: string, datos: Omit<ContenedorMateriales, 'id' | 'materiales'>) => {
         setContenedoresMateriales(prev => prev.map(c => c.id === id ? { ...c, ...datos } : c));
     };
-    const agregarCajaMateriales = (idContenedor: string, datos: Omit<MaterialFungible, 'id' | 'subinstancias'>) => {
+    const eliminarContenedorMateriales = async (id: string) => {
+        if (esNumero(id)) {
+            await eliminarContenedorMaterialEnBackend(id);
+            const materialesBd = await cargarMaterialesDesdeBackend();
+            setContenedoresMateriales(materialesBd);
+            return;
+        }
+
+        setContenedoresMateriales(prev => prev.filter(c => c.id !== id));
+    };
+    const agregarCajaMateriales = async (idContenedor: string, datos: Omit<MaterialFungible, 'id' | 'subinstancias'>) => {
+        if (esNumero(idContenedor)) {
+            await crearCajaMaterialEnBackend({
+                idContenedor: Number(idContenedor),
+                nombre: datos.nombre,
+                categoria: datos.categoria,
+                descripcion: datos.descripcion,
+                unidad: datos.unidad,
+                stockMinimo: Number(datos.stockMinimo ?? 0),
+            });
+            const materialesBd = await cargarMaterialesDesdeBackend();
+            setContenedoresMateriales(materialesBd);
+            return;
+        }
+
         setContenedoresMateriales(prev => prev.map(c => c.id === idContenedor ? {
             ...c,
             materiales: [...c.materiales, { ...datos, id: `MF${Date.now()}`, subinstancias: [] }]
         } : c));
     };
-    const editarInstanciaMaterial = (idContenedor: string, idMaterial: string, datos: Partial<Omit<MaterialFungible, 'id' | 'subinstancias'>>) => {
+    const editarInstanciaMaterial = async (idContenedor: string, idMaterial: string, datos: Partial<Omit<MaterialFungible, 'id' | 'subinstancias'>>) => {
+        if (esNumero(idMaterial)) {
+            await editarCajaMaterialEnBackend(idMaterial, {
+                nombre: datos.nombre,
+                categoria: datos.categoria,
+                descripcion: datos.descripcion,
+                unidad: datos.unidad,
+                stockMinimo: typeof datos.stockMinimo === 'number' ? Number(datos.stockMinimo) : undefined,
+            });
+            const materialesBd = await cargarMaterialesDesdeBackend();
+            setContenedoresMateriales(materialesBd);
+            return;
+        }
+
         setContenedoresMateriales(prev => prev.map(c => c.id === idContenedor ? {
             ...c,
             materiales: c.materiales.map(m => m.id === idMaterial ? { ...m, ...datos } : m)
         } : c));
     };
-    const agregarSubinstanciaMaterial = (idContenedor: string, idMaterial: string, datos: Omit<SubinstanciaMaterial, 'id'>) => {
+    const eliminarInstanciaMaterial = async (idContenedor: string, idMaterial: string) => {
+        if (esNumero(idMaterial)) {
+            await eliminarCajaMaterialEnBackend(idMaterial);
+            const materialesBd = await cargarMaterialesDesdeBackend();
+            setContenedoresMateriales(materialesBd);
+            return;
+        }
+
+        setContenedoresMateriales(prev => prev.map(c => c.id === idContenedor ? {
+            ...c,
+            materiales: c.materiales.filter(m => m.id !== idMaterial)
+        } : c));
+    };
+    const agregarSubinstanciaMaterial = async (idContenedor: string, idMaterial: string, datos: Omit<SubinstanciaMaterial, 'id'>) => {
+        if (esNumero(idMaterial)) {
+            await crearLoteMaterialEnBackend({
+                idMaterial: Number(idMaterial),
+                lote: datos.lote,
+                fechaEntrega: datos.fechaEntrega ?? null,
+                fechaRetiro: datos.fechaRetiro ?? null,
+                cantidadDisponible: Number(datos.cantidadDisponible ?? 0),
+                fechaCaducidad: datos.fechaCaducidad ?? null,
+                precio: Number(datos.precio ?? 0),
+            });
+            const materialesBd = await cargarMaterialesDesdeBackend();
+            setContenedoresMateriales(materialesBd);
+            return;
+        }
+
         setContenedoresMateriales(prev => prev.map(c => c.id === idContenedor ? {
             ...c,
             materiales: c.materiales.map(m => m.id === idMaterial ? {
@@ -377,7 +497,21 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
             } : m)
         } : c));
     };
-    const editarSubinstanciaMaterial = (idContenedor: string, idMaterial: string, idSub: string, datos: Omit<SubinstanciaMaterial, 'id'>) => {
+    const editarSubinstanciaMaterial = async (idContenedor: string, idMaterial: string, idSub: string, datos: Omit<SubinstanciaMaterial, 'id'>) => {
+        if (esNumero(idSub)) {
+            await editarLoteMaterialEnBackend(idSub, {
+                lote: datos.lote,
+                fechaEntrega: datos.fechaEntrega ?? null,
+                fechaRetiro: datos.fechaRetiro ?? null,
+                cantidadDisponible: Number(datos.cantidadDisponible ?? 0),
+                fechaCaducidad: datos.fechaCaducidad ?? null,
+                precio: Number(datos.precio ?? 0),
+            });
+            const materialesBd = await cargarMaterialesDesdeBackend();
+            setContenedoresMateriales(materialesBd);
+            return;
+        }
+
         setContenedoresMateriales(prev => prev.map(c => c.id === idContenedor ? {
             ...c,
             materiales: c.materiales.map(m => m.id === idMaterial ? {
@@ -396,7 +530,7 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
             agregarHerramienta, registrarEntregaMaterial,
             recargarDatos: cargarDesdeBackend,
             agregarContenedorActivos, editarContenedorActivos, agregarCajaActivo, editarInstanciaActivo, agregarSubinstanciaActivo, editarSubinstanciaActivo,
-            agregarContenedorMateriales, editarContenedorMateriales, agregarCajaMateriales, editarInstanciaMaterial, agregarSubinstanciaMaterial, editarSubinstanciaMaterial
+            agregarContenedorMateriales, editarContenedorMateriales, eliminarContenedorMateriales, agregarCajaMateriales, editarInstanciaMaterial, eliminarInstanciaMaterial, agregarSubinstanciaMaterial, editarSubinstanciaMaterial
         }}>
             {children}
         </ContextoInventario.Provider>

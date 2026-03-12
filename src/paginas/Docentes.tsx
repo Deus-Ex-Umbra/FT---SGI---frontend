@@ -31,12 +31,12 @@ export const Docentes = ({ onNavegar, onCerrarSesion }: Props) => {
     };
 
     const borrar = async (docente: (typeof docentes)[number]) => {
-        const ok = window.confirm(`¿Deseas borrar al docente ${docente.nombre} ${docente.apellido}?`);
+        const ok = window.confirm(`¿Deseas descartar al docente ${docente.nombre} ${docente.apellido}? (borrado blando)`);
         if (!ok) return;
         try {
             await eliminarDocente(docente.id);
         } catch (err: any) {
-            window.alert(err?.message ?? 'No se pudo borrar el docente.');
+            window.alert(err?.message ?? 'No se pudo descartar el docente.');
         }
     };
 

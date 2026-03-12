@@ -19,13 +19,23 @@ export type Acento = 'rojo' | 'naranja' | 'ambar' | 'amarillo' | 'lima' | 'esmer
 type EstadoApp = PaginaApp | 'recuperar-contrasena';
 
 const CLAVE_PAGINA_ACTUAL = 'sgi-pagina-actual';
+const PAGINAS_VALIDAS: readonly PaginaApp[] = ['login', 'resumen', 'activos', 'prestamos', 'estudiantes', 'docentes', 'material', 'configuracion'];
+
+const esPaginaValida = (pagina: string | null): pagina is PaginaApp => {
+  return !!pagina && PAGINAS_VALIDAS.includes(pagina as PaginaApp);
+};
 
 const obtenerEstadoInicial = (): EstadoApp => {
   const token = localStorage.getItem('token_acceso');
   if (!token) return 'login';
 
-  const paginaGuardada = localStorage.getItem(CLAVE_PAGINA_ACTUAL) as PaginaApp | null;
-  return paginaGuardada ?? 'activos';
+  const paginaGuardada = localStorage.getItem(CLAVE_PAGINA_ACTUAL);
+  if (esPaginaValida(paginaGuardada)) {
+    return paginaGuardada;
+  }
+
+  localStorage.removeItem(CLAVE_PAGINA_ACTUAL);
+  return 'activos';
 };
 
 function App() {

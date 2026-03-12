@@ -13,7 +13,7 @@
       "vite/client"
     ],
     "skipLibCheck": true,
-    "baseUrl": ".",
+    "ignoreDeprecations": "5.0",
     "paths": {
       "@/*": [
         "./src/*"
@@ -26,6 +26,7 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    "forceConsistentCasingInFileNames": true,
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,

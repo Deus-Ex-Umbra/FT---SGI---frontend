@@ -7,7 +7,6 @@ import { TarjetaMetrica } from '../componentes/ui/tarjeta-metrica';
 import { JerarquiaActivos } from '../componentes/inventario/JerarquiaActivos';
 import { useInventario } from '../contextos/ContextoInventario';
 import type { EstadoHerramienta } from '../tipos/inventario';
-import { BotonesAuditoria } from '../componentes/layout/BotonesAuditoria';
 
 interface Props {
     onNavegar: (pagina: PaginaApp) => void;
@@ -20,7 +19,7 @@ export const Activos = ({ onNavegar, onCerrarSesion }: Props) => {
     const [filtroEstado, setFiltroEstado] = useState<EstadoHerramienta | ''>('');
     const [fechaDesde, setFechaDesde] = useState('');
     const [fechaHasta, setFechaHasta] = useState('');
-    const [vistaBackend, setVistaBackend] = useState(false);
+    const vistaBackend = false;
 
     const fechaEnRango = (fecha?: string) => {
         if (!fechaDesde && !fechaHasta) return true;
@@ -52,74 +51,6 @@ export const Activos = ({ onNavegar, onCerrarSesion }: Props) => {
         return coincideTexto && coincideEstado && coincideFecha;
     });
 
-    const itemsFiltrados = contenedoresFiltrados.flatMap(c =>
-        c.herramientas.flatMap(h =>
-            h.subinstancias
-                .filter(sub => {
-                    const estadoOk = !filtroEstado || sub.estado === filtroEstado;
-                    if (!estadoOk) return false;
-                    return fechaEnRango(sub.fechaRetiro || sub.fechaEntrega);
-                })
-                .map(sub => ({ contenedor: c.nombre, caja: h.nombre, sub }))
-        )
-    );
-
-    const descargarExcelActivos = () => {
-        const encabezados = ['Contenedor', 'Caja', 'Codigo', 'FechaEntrega', 'FechaRetiro', 'Estado', 'UE', 'Descripcion', 'Precio'];
-        const filas = itemsFiltrados.map(({ contenedor, caja, sub }) => [
-            contenedor,
-            caja,
-            sub.codigoInventario,
-            sub.fechaEntrega || '',
-            sub.fechaRetiro || '',
-            sub.estado,
-            sub.ue || '',
-            sub.descripcion || '',
-            sub.precio ?? 0,
-        ]);
-
-        const csv = [encabezados, ...filas]
-            .map(fila => fila.map(valor => `"${String(valor).replace(/"/g, '""')}"`).join(';'))
-            .join('\n');
-        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `auditoria_activos_filtrados_${new Date().toISOString().slice(0, 10)}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
-
-    const generarPdfActivos = () => {
-        const filas = itemsFiltrados.map(({ contenedor, caja, sub }) => `
-            <tr>
-                <td>${contenedor}</td>
-                <td>${caja}</td>
-                <td>${sub.codigoInventario}</td>
-                <td>${sub.fechaEntrega || '-'}</td>
-                <td>${sub.fechaRetiro || '-'}</td>
-                <td>${sub.estado}</td>
-                <td>${sub.ue || '-'}</td>
-                <td>${sub.descripcion || '-'}</td>
-                <td>${sub.precio ?? 0}</td>
-            </tr>
-        `).join('');
-
-        const ventana = window.open('', '_blank', 'width=1200,height=800');
-        if (!ventana) return;
-        ventana.document.write(`
-            <html><head><title>Auditoria Activos</title>
-            <style>body{font-family:Arial;padding:24px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #d1d5db;padding:6px;text-align:left}th{background:#f3f4f6}</style>
-            </head><body>
-            <h1>Reporte de Auditoria - Activos</h1>
-            <p>Generado: ${new Date().toLocaleString('es-BO')} · Registros: ${itemsFiltrados.length}</p>
-            <table><thead><tr><th>Contenedor</th><th>Caja</th><th>Código</th><th>Entrega</th><th>Retiro</th><th>Estado</th><th>U.E.</th><th>Descripción</th><th>Precio</th></tr></thead><tbody>${filas}</tbody></table>
-            </body></html>
-        `);
-        ventana.document.close();
-        ventana.focus();
-        ventana.print();
-    };
 
     return (
         <LayoutPagina
@@ -147,6 +78,7 @@ export const Activos = ({ onNavegar, onCerrarSesion }: Props) => {
                 <select
                     value={filtroEstado}
                     onChange={e => setFiltroEstado(e.target.value as EstadoHerramienta | '')}
+                    title="Filtrar por estado"
                     className="h-8 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                 >
                     <option value="">Todos los estados</option>
@@ -155,7 +87,6 @@ export const Activos = ({ onNavegar, onCerrarSesion }: Props) => {
                     <option value="en_mantenimiento">En mantenimiento</option>
                     <option value="danado">Dañado</option>
                 </select>
-                <BotonesAuditoria onExcel={descargarExcelActivos} onPdf={generarPdfActivos} />
                 <input
                     type="date"
                     value={fechaDesde}
@@ -170,12 +101,6 @@ export const Activos = ({ onNavegar, onCerrarSesion }: Props) => {
                     className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                     title="Fecha hasta"
                 />
-                <button
-                    onClick={() => setVistaBackend(!vistaBackend)}
-                    className="ml-auto rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500"
-                >
-                    {vistaBackend ? 'Ver Jerarquía Original' : 'Test API (Activos)'}
-                </button>
             </BarraFiltros>
 
             {vistaBackend ? (
