@@ -1,11 +1,14 @@
-import type { CanastaPrestamo, ContenedorHerramientas, ContenedorMateriales, Herramienta, KardexMaterial, MaterialFungible, SubinstanciaHerramienta, SubinstanciaMaterial, Estudiante, Docente, Prestamo, PrestamoCanastaRegistro } from '../tipos/inventario';
+import type { CanastaPrestamo, ContenedorHerramientas, ContenedorMateriales, Herramienta, KardexMaterial, MaterialFungible, SubinstanciaHerramienta, SubinstanciaMaterial, Estudiante, Docente, Prestamo, PrestamoCanastaRegistro, Materia, Carrera } from '@/tipos/inventario';
 import { apiDateTimeAInputLocal } from './fecha-local';
+import { normalizarEstadoFisicoItem } from './estados-fisico-activo';
 
 const API_BASE = 'http://localhost:3001';
 
 interface ActivoFijoApi {
     id: string | number;
     nombre: string;
+    categoria?: string;
+    descripcion?: string;
     contenedor?: {
         id: string | number;
         nombre: string;
@@ -13,17 +16,40 @@ interface ActivoFijoApi {
     } | null;
     items?: Array<{
         id: string | number;
-        codigoInventario: string;
+        codigoInventario?: string | null;
+        codigoUnico?: string | null;
+        ubicacion?: string | null;
+        ue?: string | null;
+        descripcion?: string | null;
         fechaEntrega?: string;
         fechaRetiro?: string;
         estado: string;
+        estadoFisico?: string;
         observaciones?: string;
         precio?: number;
     }>;
 }
 
+interface TransicionPermitidaItemActivoApi {
+    estadoDestino: string;
+    requiereJustificacion: boolean;
+}
+
+interface TransicionesPermitidasItemActivoApi {
+    itemId: number;
+    codigoInventario: string;
+    estadoActual: string;
+    estadoFisico: string;
+    transiciones: TransicionPermitidaItemActivoApi[];
+}
+
 interface EditarItemActivoApi {
     codigoInventario?: string;
+    codigoUnico?: string;
+    ubicacion?: string;
+    ue?: string;
+    descripcion?: string;
+    estadoFisico?: string;
     fechaEntrega?: string | null;
     fechaRetiro?: string | null;
     estado?: string;
@@ -33,11 +59,16 @@ interface EditarItemActivoApi {
 }
 
 interface CrearItemActivoApi {
-    idActivo: number;
-    codigoInventario: string;
+    idActivo: number | string;
+    codigoInventario?: string;
+    codigoUnico?: string;
+    ubicacion?: string;
+    ue?: string;
+    descripcion?: string;
     fechaEntrega?: string | null;
     fechaRetiro?: string | null;
     estado?: string;
+    estadoFisico?: string;
     observaciones?: string;
     precio?: number;
 }
@@ -48,7 +79,9 @@ interface MaterialApi {
     categoria: string;
     descripcion?: string;
     unidad: string;
+    stockMinimoHabilitado?: boolean;
     stockMinimo: number;
+    tipoIdentificacion?: 'lote' | 'serie' | 'simple';
     contenedor?: {
         id: string | number;
         nombre: string;
@@ -56,7 +89,14 @@ interface MaterialApi {
     };
     lotes?: Array<{
         id: string | number;
-        lote: string;
+        tipo?: 'lote' | 'serie' | 'simple';
+        lote?: string | null;
+        serie?: string | null;
+        contenedor?: {
+            id: string | number;
+            nombre: string;
+            ubicacion: string;
+        };
         fechaEntrega?: string;
         fechaRetiro?: string;
         cantidadDisponible: number;
@@ -71,18 +111,42 @@ interface ContenedorMaterialApi {
     ubicacion: string;
 }
 
+interface ContenedorCompartidoApi {
+    id: string;
+    nombre: string;
+    descripcion: string;
+    idActivo?: number;
+    idMaterial?: number;
+}
+
+interface MateriaApi {
+    id: string | number;
+    codigo: string;
+    nombre?: string | null;
+}
+
+interface CarreraApi {
+    id: string | number;
+    nombre: string;
+}
+
 interface CrearCajaMaterialApi {
-    idContenedor: number;
+    idContenedor?: number;
     nombre: string;
     categoria?: string;
     descripcion?: string;
     unidad?: string;
+    stockMinimoHabilitado?: boolean;
     stockMinimo?: number;
+    tipoIdentificacion?: 'lote' | 'serie' | 'simple';
 }
 
 interface CrearLoteMaterialApi {
     idMaterial: number;
-    lote: string;
+    idContenedor: number;
+    tipo: 'lote' | 'serie' | 'simple';
+    lote?: string | null;
+    serie?: string | null;
     fechaEntrega?: string | null;
     fechaRetiro?: string | null;
     cantidadDisponible?: number;
@@ -95,11 +159,15 @@ interface EditarCajaMaterialApi {
     categoria?: string;
     descripcion?: string;
     unidad?: string;
+    stockMinimoHabilitado?: boolean;
     stockMinimo?: number;
+    tipoIdentificacion?: 'lote' | 'serie' | 'simple';
 }
 
 interface EditarLoteMaterialApi {
-    lote?: string;
+    tipo?: 'lote' | 'serie' | 'simple';
+    lote?: string | null;
+    serie?: string | null;
     fechaEntrega?: string | null;
     fechaRetiro?: string | null;
     cantidadDisponible?: number;
@@ -117,6 +185,7 @@ interface EstudianteApi {
     carrera: string;
     semestre: number;
     carnetRetenido?: boolean;
+    carnetRetenidoOverride?: boolean | null;
 }
 
 interface DocenteApi {
@@ -146,6 +215,13 @@ interface PrestamoCanastaApi {
     grupoCanasta?: string | null;
     idsPrestamo: Array<string | number>;
     carnetEstudiante: string;
+    carnetsEstudiantes?: string[];
+    estudiantes?: Array<{
+        id?: string | number;
+        carnet: string;
+        nombre: string;
+        apellido: string;
+    }>;
     idDocente?: string | number;
     docente: string;
     fechaPrestamo: string;
@@ -161,7 +237,7 @@ interface PrestamoCanastaApi {
         nombre: string;
     }>;
     consumibles?: Array<{
-        idLote: number;
+        idLote: string;
         lote: string;
         material: string;
         cantidad: number;
@@ -181,6 +257,50 @@ interface CrearPrestamoApi {
 
 const normalizarFechaHora = (valor?: string | null) => apiDateTimeAInputLocal(valor) || null;
 
+const mapCanastaPrestamoApi = (canasta: PrestamoCanastaApi): PrestamoCanastaRegistro => {
+    const estudiantes = (canasta.estudiantes ?? []).map((estudiante) => ({
+        id: estudiante.id != null ? String(estudiante.id) : undefined,
+        carnet: String(estudiante.carnet ?? ''),
+        nombre: String(estudiante.nombre ?? ''),
+        apellido: String(estudiante.apellido ?? ''),
+    }));
+
+    const carnetsEstudiantes = (canasta.carnetsEstudiantes ?? estudiantes.map((estudiante) => estudiante.carnet))
+        .map((carnet) => String(carnet ?? '').trim())
+        .filter(Boolean);
+
+    return {
+        id: String(canasta.id),
+        grupoCanasta: canasta.grupoCanasta ?? null,
+        idsPrestamo: (canasta.idsPrestamo ?? []).map((id) => String(id)),
+        carnetEstudiante: String(canasta.carnetEstudiante ?? carnetsEstudiantes[0] ?? ''),
+        carnetsEstudiantes,
+        estudiantes,
+        idDocente: canasta.idDocente != null ? String(canasta.idDocente) : undefined,
+        docente: String(canasta.docente ?? ''),
+        fechaPrestamo: normalizarFechaHora(canasta.fechaPrestamo) ?? canasta.fechaPrestamo,
+        fechaDevolucion: normalizarFechaHora(canasta.fechaDevolucion ?? undefined),
+        estado: canasta.estado,
+        observaciones: canasta.observaciones ?? '',
+        totalActivos: Number(canasta.totalActivos ?? (canasta.cosas ?? []).length),
+        totalConsumibles: Number(canasta.totalConsumibles ?? 0),
+        totalCosas: Number(canasta.totalCosas ?? 0),
+        cosas: (canasta.cosas ?? []).map((item) => ({
+            idHerramienta: String(item.idHerramienta),
+            codigoInventario: String(item.codigoInventario ?? ''),
+            nombre: String(item.nombre ?? 'Activo'),
+        })),
+        consumibles: (canasta.consumibles ?? []).map((item) => ({
+            idLote: String(item.idLote ?? '').trim(),
+            lote: String(item.lote ?? ''),
+            material: String(item.material ?? 'Material'),
+            cantidad: Number(item.cantidad ?? 0),
+            motivo: String(item.motivo ?? ''),
+            fecha: normalizarFechaHora(item.fecha) ?? String(item.fecha ?? ''),
+        })),
+    };
+};
+
 export const cargarActivosDesdeBackend = async (): Promise<ContenedorHerramientas[]> => {
     const resp = await fetch(`${API_BASE}/activos/fijos`);
     if (!resp.ok) throw new Error('No se pudo cargar activos desde backend');
@@ -197,6 +317,7 @@ export const cargarActivosDesdeBackend = async (): Promise<ContenedorHerramienta
             porContenedor.set(idCont, {
                 id: idCont,
                 nombre: nombreCont,
+                descripcion: ubicacionCont,
                 ubicacion: ubicacionCont,
                 herramientas: [],
             });
@@ -204,22 +325,24 @@ export const cargarActivosDesdeBackend = async (): Promise<ContenedorHerramienta
 
         const subinstancias: SubinstanciaHerramienta[] = (fijo.items ?? []).map((item) => ({
             id: String(item.id),
-            codigoInventario: item.codigoInventario,
+            codigoInventario: item.codigoInventario ?? undefined,
+            codigoUnico: item.codigoUnico ?? undefined,
+            ubicacion: item.ubicacion ?? undefined,
+            ue: item.ue ?? undefined,
+            descripcion: item.descripcion ?? undefined,
+            estadoFisico: normalizarEstadoFisicoItem(item.estadoFisico) ?? 'bueno',
             fechaEntrega: soloFecha(item.fechaEntrega),
             fechaRetiro: soloFecha(item.fechaRetiro),
-            estado: (item.estado as SubinstanciaHerramienta['estado']) ?? 'buen_estado',
+            estado: (item.estado as SubinstanciaHerramienta['estado']) || 'disponible',
             observaciones: item.observaciones ?? '',
-            ue: '',
-            descripcion: '',
             precio: Number(item.precio ?? 0),
         }));
 
         const herramienta: Herramienta = {
             id: String(fijo.id),
             nombre: fijo.nombre,
-            categoria: 'General',
-            descripcion: '',
-            ue: '',
+            categoria: fijo.categoria ?? 'General',
+            descripcion: fijo.descripcion ?? '',
             subinstancias,
         };
 
@@ -229,11 +352,79 @@ export const cargarActivosDesdeBackend = async (): Promise<ContenedorHerramienta
     return Array.from(porContenedor.values());
 };
 
-export const crearContenedorActivoEnBackend = async (payload: { nombre: string; ubicacion: string }): Promise<void> => {
-    const resp = await fetch(`${API_BASE}/activos/contenedores`, {
+export const obtenerTransicionesPermitidasItemActivoEnBackend = async (id: string) => {
+    const resp = await fetch(`${API_BASE}/activos/items/${id}/transiciones-permitidas`);
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudieron obtener las transiciones permitidas del item');
+    }
+
+    return (await resp.json()) as TransicionesPermitidasItemActivoApi;
+};
+
+export const cargarContenedoresCompartidosDesdeBackend = async (): Promise<ContenedorCompartidoApi[]> => {
+    const resp = await fetch(`${API_BASE}/contenedores`);
+    if (!resp.ok) throw new Error('No se pudieron cargar los contenedores compartidos');
+    return (await resp.json()) as ContenedorCompartidoApi[];
+};
+
+export const crearContenedorCompartidoEnBackend = async (payload: { nombre: string; descripcion: string }): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/contenedores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo crear contenedor compartido');
+    }
+};
+
+export const editarContenedorCompartidoEnBackend = async (payload: {
+    id: string;
+    idActivo?: number;
+    idMaterial?: number;
+    nombre: string;
+    descripcion: string;
+}): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/contenedores/${encodeURIComponent(payload.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo editar contenedor compartido');
+    }
+};
+
+export const eliminarContenedorCompartidoEnBackend = async (payload: {
+    id: string;
+    idActivo?: number;
+    idMaterial?: number;
+}): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/contenedores/${encodeURIComponent(payload.id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idActivo: payload.idActivo, idMaterial: payload.idMaterial }),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo eliminar contenedor compartido');
+    }
+};
+
+export const crearContenedorActivoEnBackend = async (payload: { nombre: string; ubicacion?: string; descripcion?: string }): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/activos/contenedores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            nombre: payload.nombre,
+            ubicacion: payload.ubicacion ?? payload.descripcion ?? '',
+        }),
     });
 
     if (!resp.ok) {
@@ -242,11 +433,14 @@ export const crearContenedorActivoEnBackend = async (payload: { nombre: string; 
     }
 };
 
-export const editarContenedorActivoEnBackend = async (id: string, payload: Partial<{ nombre: string; ubicacion: string }>): Promise<void> => {
+export const editarContenedorActivoEnBackend = async (id: string, payload: Partial<{ nombre: string; ubicacion: string; descripcion: string }>): Promise<void> => {
     const resp = await fetch(`${API_BASE}/activos/contenedores/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+            nombre: payload.nombre,
+            ubicacion: payload.ubicacion ?? payload.descripcion,
+        }),
     });
 
     if (!resp.ok) {
@@ -255,7 +449,10 @@ export const editarContenedorActivoEnBackend = async (id: string, payload: Parti
     }
 };
 
-export const editarActivoFijoEnBackend = async (id: string, payload: Partial<{ nombre: string }>): Promise<void> => {
+export const editarActivoFijoEnBackend = async (
+    id: string,
+    payload: Partial<{ nombre: string; categoria: string; descripcion: string }>,
+): Promise<void> => {
     const resp = await fetch(`${API_BASE}/activos/fijos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -268,7 +465,20 @@ export const editarActivoFijoEnBackend = async (id: string, payload: Partial<{ n
     }
 };
 
-export const crearActivoFijoEnBackend = async (payload: { nombre: string; idContenedor?: number }): Promise<void> => {
+export const eliminarActivoFijoEnBackend = async (id: string): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/activos/fijos/${id}`, {
+        method: 'DELETE',
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo eliminar activo fijo');
+    }
+};
+
+export const crearActivoFijoEnBackend = async (
+    payload: { nombre: string; idContenedor?: number; categoria?: string; descripcion?: string },
+): Promise<void> => {
     const resp = await fetch(`${API_BASE}/activos/fijos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -294,6 +504,17 @@ export const editarItemActivoEnBackend = async (id: string, payload: EditarItemA
     }
 };
 
+export const eliminarItemActivoEnBackend = async (id: string): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/activos/items/${id}`, {
+        method: 'DELETE',
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo eliminar item de activo');
+    }
+};
+
 export const crearItemActivoEnBackend = async (payload: CrearItemActivoApi): Promise<void> => {
     const resp = await fetch(`${API_BASE}/activos/items`, {
         method: 'POST',
@@ -307,7 +528,7 @@ export const crearItemActivoEnBackend = async (payload: CrearItemActivoApi): Pro
     }
 };
 
-export const cargarMaterialesDesdeBackend = async (): Promise<ContenedorMateriales[]> => {
+export const cargarMaterialesDesdeBackend = async (): Promise<{ contenedores: ContenedorMateriales[]; catalogo: MaterialFungible[] }> => {
     const [respContenedores, respCajas] = await Promise.all([
         fetch(`${API_BASE}/materiales/contenedores`),
         fetch(`${API_BASE}/materiales/cajas`),
@@ -320,6 +541,20 @@ export const cargarMaterialesDesdeBackend = async (): Promise<ContenedorMaterial
     const contenedoresApi = (await respContenedores.json()) as ContenedorMaterialApi[];
     const materiales = (await respCajas.json()) as MaterialApi[];
 
+    const catalogo: MaterialFungible[] = materiales
+        .map((mat) => ({
+            id: String(mat.id),
+            nombre: mat.nombre,
+            categoria: mat.categoria,
+            descripcion: mat.descripcion,
+            unidad: mat.unidad,
+            stockMinimoHabilitado: Boolean(mat.stockMinimoHabilitado ?? false),
+            stockMinimo: Number(mat.stockMinimo ?? 0),
+            tipoIdentificacion: (mat.tipoIdentificacion ?? 'lote') as MaterialFungible['tipoIdentificacion'],
+            subinstancias: [],
+        }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
     const porContenedor = new Map<string, ContenedorMateriales>();
 
     contenedoresApi.forEach((contenedor) => {
@@ -327,62 +562,126 @@ export const cargarMaterialesDesdeBackend = async (): Promise<ContenedorMaterial
         porContenedor.set(idCont, {
             id: idCont,
             nombre: contenedor.nombre,
+            descripcion: contenedor.ubicacion,
             ubicacion: contenedor.ubicacion,
             materiales: [],
         });
     });
 
-    materiales.forEach((mat) => {
-        const idCont = mat.contenedor?.id ?? 'CM-BD-1';
-        const idContStr = String(idCont);
-        const nombreCont = mat.contenedor?.nombre ?? 'Contenedor BD';
-        const ubicacionCont = mat.contenedor?.ubicacion ?? 'PostgreSQL';
+    const materialesPorContenedor = new Map<string, Map<string, MaterialFungible>>();
+
+    const asegurarContenedor = (payload?: { id: string | number; nombre: string; ubicacion: string } | null) => {
+        if (!payload?.id) return null;
+        const idContStr = String(payload.id);
 
         if (!porContenedor.has(idContStr)) {
             porContenedor.set(idContStr, {
                 id: idContStr,
-                nombre: nombreCont,
-                ubicacion: ubicacionCont,
+                nombre: payload.nombre ?? 'Contenedor',
+                descripcion: payload.ubicacion ?? '',
+                ubicacion: payload.ubicacion ?? '',
                 materiales: [],
             });
         }
 
-        const subinstancias: SubinstanciaMaterial[] = (mat.lotes ?? []).map((lote) => ({
-            id: String(lote.id),
-            lote: lote.lote,
-            fechaEntrega: soloFecha(lote.fechaEntrega),
-            fechaRetiro: soloFecha(lote.fechaRetiro),
-            cantidadDisponible: Number(lote.cantidadDisponible ?? 0),
-            fechaCaducidad: soloFecha(lote.fechaCaducidad),
-            precio: Number(lote.precio ?? 0),
-        }));
+        return idContStr;
+    };
 
-        const material: MaterialFungible = {
-            id: String(mat.id),
+    const asegurarMaterialEnContenedor = (idContStr: string, mat: MaterialApi): MaterialFungible => {
+        const matId = String(mat.id);
+        const mapa = materialesPorContenedor.get(idContStr) ?? new Map<string, MaterialFungible>();
+        if (!materialesPorContenedor.has(idContStr)) materialesPorContenedor.set(idContStr, mapa);
+
+        const existente = mapa.get(matId);
+        if (existente) return existente;
+
+        const nuevo: MaterialFungible = {
+            id: matId,
             nombre: mat.nombre,
             categoria: mat.categoria,
             descripcion: mat.descripcion,
             unidad: mat.unidad,
+            stockMinimoHabilitado: Boolean(mat.stockMinimoHabilitado ?? false),
             stockMinimo: Number(mat.stockMinimo ?? 0),
-            subinstancias,
+            tipoIdentificacion: (mat.tipoIdentificacion ?? 'lote') as MaterialFungible['tipoIdentificacion'],
+            subinstancias: [],
         };
+        mapa.set(matId, nuevo);
+        return nuevo;
+    };
 
-        porContenedor.get(idContStr)?.materiales.push(material);
+    materiales.forEach((mat) => {
+        const lotes = mat.lotes ?? [];
+
+        if (lotes.length === 0) {
+            // Legacy: si aún existe un contenedor en el padre, mantenemos la visualización sin instancias.
+            const idLegacy = asegurarContenedor(mat.contenedor ?? null);
+            if (idLegacy) {
+                asegurarMaterialEnContenedor(idLegacy, mat);
+            }
+            return;
+        }
+
+        lotes.forEach((inst) => {
+            const idContStr = asegurarContenedor(inst.contenedor ?? mat.contenedor ?? null);
+            if (!idContStr) return;
+
+            const materialEnCont = asegurarMaterialEnContenedor(idContStr, mat);
+            materialEnCont.subinstancias.push({
+                id: String(inst.id),
+                tipo: (inst.tipo ?? mat.tipoIdentificacion ?? 'lote') as SubinstanciaMaterial['tipo'],
+                lote: inst.lote ?? null,
+                serie: inst.serie ?? null,
+                fechaEntrega: soloFecha(inst.fechaEntrega),
+                fechaRetiro: soloFecha(inst.fechaRetiro),
+                cantidadDisponible: Number(inst.cantidadDisponible ?? 0),
+                fechaCaducidad: soloFecha(inst.fechaCaducidad),
+                precio: Number(inst.precio ?? 0),
+            });
+        });
     });
 
-    return Array.from(porContenedor.values());
+    const contenedores = Array.from(porContenedor.values()).map((c) => {
+        const mats = Array.from(materialesPorContenedor.get(c.id)?.values() ?? []);
+        mats.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+        mats.forEach((m) =>
+            m.subinstancias.sort((a, b) => String(a.lote ?? a.serie ?? '').localeCompare(String(b.lote ?? b.serie ?? ''), 'es')),
+        );
+        return { ...c, materiales: mats };
+    });
+
+    return { contenedores, catalogo };
 };
 
-export const crearContenedorMaterialEnBackend = async (payload: { nombre: string; ubicacion: string }): Promise<void> => {
+export const crearContenedorMaterialEnBackend = async (payload: { nombre: string; ubicacion?: string; descripcion?: string }): Promise<void> => {
     const resp = await fetch(`${API_BASE}/materiales/contenedores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+            nombre: payload.nombre,
+            ubicacion: payload.ubicacion ?? payload.descripcion ?? '',
+        }),
     });
 
     if (!resp.ok) {
         const txt = await resp.text();
         throw new Error(txt || 'No se pudo crear contenedor de materiales');
+    }
+};
+
+export const editarContenedorMaterialEnBackend = async (id: string, payload: Partial<{ nombre: string; ubicacion: string; descripcion: string }>): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/materiales/contenedores/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            nombre: payload.nombre,
+            ubicacion: payload.ubicacion ?? payload.descripcion,
+        }),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo editar contenedor de materiales');
     }
 };
 
@@ -438,6 +737,17 @@ export const editarLoteMaterialEnBackend = async (id: string, payload: EditarLot
     }
 };
 
+export const eliminarLoteMaterialEnBackend = async (id: string): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/materiales/lotes/${id}`, {
+        method: 'DELETE',
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo eliminar lote de material');
+    }
+};
+
 export const eliminarContenedorMaterialEnBackend = async (id: string): Promise<void> => {
     const resp = await fetch(`${API_BASE}/materiales/contenedores/${id}`, {
         method: 'DELETE',
@@ -472,7 +782,8 @@ export const cargarEstudiantesDesdeBackend = async (): Promise<Estudiante[]> => 
         apellido: e.apellido,
         carrera: e.carrera,
         semestre: Number(e.semestre ?? 0),
-           carnetRetenido: Boolean(e.carnetRetenido),
+        carnetRetenido: Boolean(e.carnetRetenido),
+        carnetRetenidoOverride: typeof e.carnetRetenidoOverride === 'boolean' ? e.carnetRetenidoOverride : null,
     }));
 };
 
@@ -489,6 +800,129 @@ export const cargarDocentesDesdeBackend = async (): Promise<Docente[]> => {
         materia: d.materia,
         carnet: d.carnet,
     }));
+};
+
+export const cargarMateriasDesdeBackend = async (): Promise<Materia[]> => {
+    const resp = await fetch(`${API_BASE}/prestamos/materias`);
+    if (!resp.ok) throw new Error('No se pudieron cargar las materias desde backend');
+    const data = (await resp.json()) as MateriaApi[];
+
+    return data.map((materia) => ({
+        id: String(materia.id),
+        codigo: materia.codigo,
+        nombre: materia.nombre ?? null,
+    }));
+};
+
+export const crearMateriaEnBackend = async (payload: { codigo: string; nombre?: string | null }): Promise<Materia> => {
+    const resp = await fetch(`${API_BASE}/prestamos/materias`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo crear la materia');
+    }
+
+    const materia = (await resp.json()) as MateriaApi;
+    return {
+        id: String(materia.id),
+        codigo: materia.codigo,
+        nombre: materia.nombre ?? null,
+    };
+};
+
+export const editarMateriaEnBackend = async (id: string, payload: Partial<{ codigo: string; nombre: string | null }>): Promise<Materia> => {
+    const resp = await fetch(`${API_BASE}/prestamos/materias/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo editar la materia');
+    }
+
+    const materia = (await resp.json()) as MateriaApi;
+    return {
+        id: String(materia.id),
+        codigo: materia.codigo,
+        nombre: materia.nombre ?? null,
+    };
+};
+
+export const eliminarMateriaEnBackend = async (id: string): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/prestamos/materias/${id}`, {
+        method: 'DELETE',
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo eliminar la materia');
+    }
+};
+
+export const cargarCarrerasDesdeBackend = async (): Promise<Carrera[]> => {
+    const resp = await fetch(`${API_BASE}/prestamos/carreras`);
+    if (!resp.ok) throw new Error('No se pudieron cargar las carreras desde backend');
+    const data = (await resp.json()) as CarreraApi[];
+
+    return data.map((carrera) => ({
+        id: String(carrera.id),
+        nombre: carrera.nombre,
+    }));
+};
+
+export const crearCarreraEnBackend = async (payload: { nombre: string }): Promise<Carrera> => {
+    const resp = await fetch(`${API_BASE}/prestamos/carreras`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo crear la carrera');
+    }
+
+    const carrera = (await resp.json()) as CarreraApi;
+    return {
+        id: String(carrera.id),
+        nombre: carrera.nombre,
+    };
+};
+
+export const editarCarreraEnBackend = async (id: string, payload: Partial<{ nombre: string }>): Promise<Carrera> => {
+    const resp = await fetch(`${API_BASE}/prestamos/carreras/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo editar la carrera');
+    }
+
+    const carrera = (await resp.json()) as CarreraApi;
+    return {
+        id: String(carrera.id),
+        nombre: carrera.nombre,
+    };
+};
+
+export const eliminarCarreraEnBackend = async (id: string): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/prestamos/carreras/${id}`, {
+        method: 'DELETE',
+    });
+
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo eliminar la carrera');
+    }
 };
 
 export const cargarPrestamosDesdeBackend = async (): Promise<Prestamo[]> => {
@@ -514,34 +948,7 @@ export const cargarCanastasPrestamoDesdeBackend = async (): Promise<PrestamoCana
     if (!resp.ok) throw new Error('No se pudo cargar canastas de préstamos desde backend');
     const data = (await resp.json()) as PrestamoCanastaApi[];
 
-    return data.map((c) => ({
-        id: String(c.id),
-        grupoCanasta: c.grupoCanasta ?? null,
-        idsPrestamo: (c.idsPrestamo ?? []).map((id) => String(id)),
-        carnetEstudiante: c.carnetEstudiante,
-        idDocente: c.idDocente != null ? String(c.idDocente) : undefined,
-        docente: c.docente,
-        fechaPrestamo: normalizarFechaHora(c.fechaPrestamo) ?? c.fechaPrestamo,
-        fechaDevolucion: normalizarFechaHora(c.fechaDevolucion ?? undefined),
-        estado: c.estado,
-        observaciones: c.observaciones ?? '',
-        totalActivos: Number(c.totalActivos ?? (c.cosas ?? []).length),
-        totalConsumibles: Number(c.totalConsumibles ?? 0),
-        totalCosas: Number(c.totalCosas ?? 0),
-        cosas: (c.cosas ?? []).map((i) => ({
-            idHerramienta: String(i.idHerramienta),
-            codigoInventario: String(i.codigoInventario ?? ''),
-            nombre: String(i.nombre ?? 'Activo'),
-        })),
-        consumibles: (c.consumibles ?? []).map((i) => ({
-            idLote: Number(i.idLote ?? 0),
-            lote: String(i.lote ?? ''),
-            material: String(i.material ?? 'Material'),
-            cantidad: Number(i.cantidad ?? 0),
-            motivo: String(i.motivo ?? ''),
-            fecha: normalizarFechaHora(i.fecha) ?? String(i.fecha ?? ''),
-        })),
-    }));
+    return data.map(mapCanastaPrestamoApi);
 };
 
 export const crearPrestamoEnBackend = async (payload: CrearPrestamoApi): Promise<Prestamo> => {
@@ -652,14 +1059,15 @@ export const crearCanastaPrestamoEnBackend = async (payload: CanastaPrestamo): P
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            carnetEstudiante: payload.carnetEstudiante,
+            carnetEstudiante: payload.carnetEstudiante ?? payload.carnetsEstudiantes[0],
+            carnetsEstudiantes: payload.carnetsEstudiantes,
             idDocente: Number(payload.idDocente),
             fechaPrestamo: payload.fechaPrestamo,
             fechaDevolucion: payload.fechaDevolucion,
             observaciones: payload.observaciones ?? '',
             equipos: payload.equipos,
             consumibles: payload.consumibles.map((c) => ({
-                idLote: Number(c.idLote),
+                idLote: String(c.idLote ?? '').trim(),
                 cantidad: Number(c.cantidad),
                 motivo: c.motivo,
             })),
@@ -676,6 +1084,7 @@ export const editarCanastaPrestamoEnBackend = async (
     idCanasta: string,
     payload: Partial<{
         carnetEstudiante: string;
+        carnetsEstudiantes: string[];
         fechaPrestamo: string;
         fechaDevolucion: string | null;
         observaciones: string;
@@ -695,34 +1104,7 @@ export const editarCanastaPrestamoEnBackend = async (
     }
 
     const c = (await resp.json()) as PrestamoCanastaApi;
-    return {
-        id: String(c.id),
-        grupoCanasta: c.grupoCanasta ?? null,
-        idsPrestamo: (c.idsPrestamo ?? []).map((x) => String(x)),
-        carnetEstudiante: c.carnetEstudiante,
-        idDocente: c.idDocente != null ? String(c.idDocente) : undefined,
-        docente: c.docente,
-        fechaPrestamo: normalizarFechaHora(c.fechaPrestamo) ?? c.fechaPrestamo,
-        fechaDevolucion: normalizarFechaHora(c.fechaDevolucion ?? undefined),
-        estado: c.estado,
-        observaciones: c.observaciones ?? '',
-        totalActivos: Number(c.totalActivos ?? (c.cosas ?? []).length),
-        totalConsumibles: Number(c.totalConsumibles ?? 0),
-        totalCosas: Number(c.totalCosas ?? 0),
-        cosas: (c.cosas ?? []).map((i) => ({
-            idHerramienta: String(i.idHerramienta),
-            codigoInventario: String(i.codigoInventario ?? ''),
-            nombre: String(i.nombre ?? 'Activo'),
-        })),
-        consumibles: (c.consumibles ?? []).map((i) => ({
-            idLote: Number(i.idLote ?? 0),
-            lote: String(i.lote ?? ''),
-            material: String(i.material ?? 'Material'),
-            cantidad: Number(i.cantidad ?? 0),
-            motivo: String(i.motivo ?? ''),
-            fecha: normalizarFechaHora(i.fecha) ?? String(i.fecha ?? ''),
-        })),
-    };
+    return mapCanastaPrestamoApi(c);
 };
 
 export const extenderCanastaPrestamoEnBackend = async (idCanasta: string, fechaDevolucion: string): Promise<PrestamoCanastaRegistro> => {
@@ -738,34 +1120,7 @@ export const extenderCanastaPrestamoEnBackend = async (idCanasta: string, fechaD
     }
 
     const c = (await resp.json()) as PrestamoCanastaApi;
-    return {
-        id: String(c.id),
-        grupoCanasta: c.grupoCanasta ?? null,
-        idsPrestamo: (c.idsPrestamo ?? []).map((x) => String(x)),
-        carnetEstudiante: c.carnetEstudiante,
-        idDocente: c.idDocente != null ? String(c.idDocente) : undefined,
-        docente: c.docente,
-        fechaPrestamo: normalizarFechaHora(c.fechaPrestamo) ?? c.fechaPrestamo,
-        fechaDevolucion: normalizarFechaHora(c.fechaDevolucion ?? undefined),
-        estado: c.estado,
-        observaciones: c.observaciones ?? '',
-        totalActivos: Number(c.totalActivos ?? (c.cosas ?? []).length),
-        totalConsumibles: Number(c.totalConsumibles ?? 0),
-        totalCosas: Number(c.totalCosas ?? 0),
-        cosas: (c.cosas ?? []).map((i) => ({
-            idHerramienta: String(i.idHerramienta),
-            codigoInventario: String(i.codigoInventario ?? ''),
-            nombre: String(i.nombre ?? 'Activo'),
-        })),
-        consumibles: (c.consumibles ?? []).map((i) => ({
-            idLote: Number(i.idLote ?? 0),
-            lote: String(i.lote ?? ''),
-            material: String(i.material ?? 'Material'),
-            cantidad: Number(i.cantidad ?? 0),
-            motivo: String(i.motivo ?? ''),
-            fecha: normalizarFechaHora(i.fecha) ?? String(i.fecha ?? ''),
-        })),
-    };
+    return mapCanastaPrestamoApi(c);
 };
 
 export const devolverCanastaPrestamoEnBackend = async (idCanasta: string): Promise<PrestamoCanastaRegistro> => {
@@ -779,34 +1134,7 @@ export const devolverCanastaPrestamoEnBackend = async (idCanasta: string): Promi
     }
 
     const c = (await resp.json()) as PrestamoCanastaApi;
-    return {
-        id: String(c.id),
-        grupoCanasta: c.grupoCanasta ?? null,
-        idsPrestamo: (c.idsPrestamo ?? []).map((x) => String(x)),
-        carnetEstudiante: c.carnetEstudiante,
-        idDocente: c.idDocente != null ? String(c.idDocente) : undefined,
-        docente: c.docente,
-        fechaPrestamo: normalizarFechaHora(c.fechaPrestamo) ?? c.fechaPrestamo,
-        fechaDevolucion: normalizarFechaHora(c.fechaDevolucion ?? undefined),
-        estado: c.estado,
-        observaciones: c.observaciones ?? '',
-        totalActivos: Number(c.totalActivos ?? (c.cosas ?? []).length),
-        totalConsumibles: Number(c.totalConsumibles ?? 0),
-        totalCosas: Number(c.totalCosas ?? 0),
-        cosas: (c.cosas ?? []).map((i) => ({
-            idHerramienta: String(i.idHerramienta),
-            codigoInventario: String(i.codigoInventario ?? ''),
-            nombre: String(i.nombre ?? 'Activo'),
-        })),
-        consumibles: (c.consumibles ?? []).map((i) => ({
-            idLote: Number(i.idLote ?? 0),
-            lote: String(i.lote ?? ''),
-            material: String(i.material ?? 'Material'),
-            cantidad: Number(i.cantidad ?? 0),
-            motivo: String(i.motivo ?? ''),
-            fecha: normalizarFechaHora(i.fecha) ?? String(i.fecha ?? ''),
-        })),
-    };
+    return mapCanastaPrestamoApi(c);
 };
 
 export const eliminarCanastaPrestamoEnBackend = async (idCanasta: string): Promise<void> => {
@@ -855,7 +1183,7 @@ export const crearEstudianteEnBackend = async (payload: Omit<Estudiante, 'id'>):
         throw new Error(txt || 'No se pudo registrar estudiante');
     }
 
-    const e = (await resp.json()) as { id: string | number; carnet: string; nombre: string; apellido: string; carrera: string; semestre: number; carnetRetenido?: boolean };
+    const e = (await resp.json()) as EstudianteApi;
     return {
         id: String(e.id),
         carnet: e.carnet,
@@ -864,6 +1192,7 @@ export const crearEstudianteEnBackend = async (payload: Omit<Estudiante, 'id'>):
         carrera: e.carrera,
         semestre: Number(e.semestre),
         carnetRetenido: Boolean(e.carnetRetenido),
+        carnetRetenidoOverride: typeof e.carnetRetenidoOverride === 'boolean' ? e.carnetRetenidoOverride : null,
     };
 };
 
@@ -879,7 +1208,7 @@ export const editarEstudianteEnBackend = async (id: string, payload: Partial<Omi
         throw new Error(txt || 'No se pudo editar estudiante');
     }
 
-    const e = (await resp.json()) as { id: string | number; carnet: string; nombre: string; apellido: string; carrera: string; semestre: number; carnetRetenido?: boolean };
+    const e = (await resp.json()) as EstudianteApi;
     return {
         id: String(e.id),
         carnet: e.carnet,
@@ -888,6 +1217,7 @@ export const editarEstudianteEnBackend = async (id: string, payload: Partial<Omi
         carrera: e.carrera,
         semestre: Number(e.semestre),
         carnetRetenido: Boolean(e.carnetRetenido),
+        carnetRetenidoOverride: typeof e.carnetRetenidoOverride === 'boolean' ? e.carnetRetenidoOverride : null,
     };
 };
 

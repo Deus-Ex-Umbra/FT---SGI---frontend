@@ -1,0 +1,123 @@
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Bell, AlertTriangle } from 'lucide-react';
+import { useInventario } from '@/contextos/ContextoInventario';
+import { formatearFechaHora } from '@/lib/formato-fecha';
+
+interface Props {
+    titulo: string;
+    subtitulo: string;
+    alertas?: number;
+    accionInicio?: ReactNode;
+}
+
+export const BarraSuperior = ({ titulo, subtitulo, alertas = 0, accionInicio }: Props) => (
+    <BarraSuperiorContenido titulo={titulo} subtitulo={subtitulo} alertas={alertas} accionInicio={accionInicio} />
+);
+
+const parseFecha = (valor?: string | null) => {
+    if (!valor) return null;
+    const texto = String(valor);
+    const normalizado = texto.includes('T') ? texto : texto.replace(' ', 'T');
+    const fecha = new Date(normalizado);
+    return Number.isNaN(fecha.getTime()) ? null : fecha;
+};
+
+const BarraSuperiorContenido = ({ titulo, subtitulo, alertas: _alertas = 0, accionInicio }: Props) => {
+    const { prestamos, estudiantes, herramientas } = useInventario();
+    const [abierto, setAbierto] = useState(false);
+    const panelRef = useRef<HTMLDivElement | null>(null);
+
+    const prestamosExpirados = useMemo(() => {
+        const ahora = Date.now();
+        return prestamos.filter((p) => {
+            if (p.estado === 'devuelto' || p.estado === 'devuelto_fuera_de_fecha_limite') return false;
+            if (p.estado === 'vencido') return true;
+            const fechaDevolucion = parseFecha(p.fechaDevolucion);
+            return !!fechaDevolucion && fechaDevolucion.getTime() < ahora;
+        });
+    }, [prestamos]);
+
+    const totalAlertas = prestamosExpirados.length;
+
+    useEffect(() => {
+        const onClickFuera = (event: MouseEvent) => {
+            if (!panelRef.current) return;
+            if (!panelRef.current.contains(event.target as Node)) {
+                setAbierto(false);
+            }
+        };
+
+        if (abierto) {
+            document.addEventListener('mousedown', onClickFuera);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', onClickFuera);
+        };
+    }, [abierto]);
+
+    return (
+        <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center gap-3">
+                {accionInicio}
+                <div>
+                    <h1 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{titulo}</h1>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{subtitulo}</p>
+                </div>
+            </div>
+            <div className="relative flex items-center gap-3" ref={panelRef}>
+                <button
+                    title="Notificaciones de préstamos"
+                    onClick={() => setAbierto((v) => !v)}
+                    className="relative rounded-md p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                >
+                    <Bell className="h-4 w-4" />
+                    {totalAlertas > 0 && (
+                        <>
+                            <span className="absolute right-0.5 top-0.5 flex h-2 w-2 rounded-full bg-red-500" />
+                            <span className="absolute -right-1 -top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+                                {totalAlertas > 99 ? '99+' : totalAlertas}
+                            </span>
+                        </>
+                    )}
+                </button>
+
+                {abierto && (
+                    <div className="absolute right-0 top-10 z-50 w-[360px] rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                        <div className="border-b border-slate-200 px-3 py-2 dark:border-slate-700">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200">
+                                Préstamos expirados
+                            </p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {prestamosExpirados.length} préstamo(s) con fecha de devolución expirada
+                            </p>
+                        </div>
+                        <div className="max-h-72 overflow-y-auto p-2">
+                            {prestamosExpirados.length === 0 && (
+                                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                    No hay préstamos expirados.
+                                </div>
+                            )}
+
+                            {prestamosExpirados.map((p) => {
+                                const est = estudiantes.find((e) => e.carnet === p.carnetEstudiante);
+                                const herr = herramientas.find((h) => h.id === p.idHerramienta);
+                                return (
+                                    <div key={p.id} className="mb-2 rounded-md border border-red-200 bg-red-50 p-2.5 last:mb-0 dark:border-red-800 dark:bg-red-950/30">
+                                        <div className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-red-700 dark:text-red-300">
+                                            <AlertTriangle className="h-3.5 w-3.5" />
+                                            Vencido
+                                        </div>
+                                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">#{p.id} · {est ? `${est.nombre} ${est.apellido}` : p.carnetEstudiante}</p>
+                                        <p className="text-[11px] text-slate-600 dark:text-slate-300">Activo: {herr?.nombre ?? p.idHerramienta}</p>
+                                        <p className="text-[11px] text-slate-600 dark:text-slate-300">Vencimiento: {p.fechaDevolucion ? formatearFechaHora(p.fechaDevolucion) : 'Sin fecha registrada'}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </header>
+    );
+};

@@ -7,57 +7,80 @@ import { Prestamos } from './paginas/Prestamos';
 import { Estudiantes } from './paginas/Estudiantes';
 import { Docentes } from './paginas/Docentes';
 import { MaterialFungible } from './paginas/MaterialFungible';
+import { Contenedores } from './paginas/Contenedores';
 import { Configuracion } from './paginas/Configuracion';
-import { PantallaCarga } from './componentes/PantallaCarga';
+import { Usuarios } from './paginas/Usuarios';
+import { Auditoria } from './paginas/Auditoria';
 import { ProveedorInventario } from './contextos/ContextoInventario';
-import type { PaginaApp } from './componentes/inventario/MenuLateral';
-import { cerrarSesion as cerrarSesionAuth } from './lib/servicio-autenticacion';
-
-export type Tema = 'claro' | 'oscuro' | 'sistema';
-export type Acento = 'rojo' | 'naranja' | 'ambar' | 'amarillo' | 'lima' | 'esmeralda' | 'cian' | 'azul' | 'purpura' | 'violeta' | 'rosa';
+import { ProveedorConfirmacion } from './contextos/ContextoConfirmacion';
+import { Toaster } from './componentes/ui/sonner';
+import type { PaginaApp } from '@/tipos/navegacion';
+import { cerrarSesion as cerrarSesionAuth, obtenerUsuarioActual, type RolUsuario, type UsuarioSesion } from './lib/servicio-autenticacion';
+import type { Tema } from '@/tipos/tema';
 
 type EstadoApp = PaginaApp | 'recuperar-contrasena';
 
 const CLAVE_PAGINA_ACTUAL = 'sgi-pagina-actual';
-const PAGINAS_VALIDAS: readonly PaginaApp[] = ['login', 'resumen', 'activos', 'prestamos', 'estudiantes', 'docentes', 'material', 'configuracion'];
+const PAGINAS_VALIDAS: readonly PaginaApp[] = ['login', 'resumen', 'activos', 'contenedores', 'prestamos', 'estudiantes', 'docentes', 'material', 'auditoria', 'usuarios', 'configuracion'];
+const PAGINAS_ADMINISTRADOR: readonly PaginaApp[] = ['resumen', 'auditoria', 'usuarios', 'estudiantes', 'docentes', 'configuracion'];
+const PAGINAS_ENCARGADO: readonly PaginaApp[] = ['resumen', 'activos', 'contenedores', 'prestamos', 'estudiantes', 'docentes', 'material', 'configuracion'];
 
 const esPaginaValida = (pagina: string | null): pagina is PaginaApp => {
   return !!pagina && PAGINAS_VALIDAS.includes(pagina as PaginaApp);
+};
+
+const paginasPermitidasPorRol = (rol: RolUsuario | undefined): readonly PaginaApp[] => {
+  return rol === 'administrador' ? PAGINAS_ADMINISTRADOR : PAGINAS_ENCARGADO;
+};
+
+const paginaInicioPorRol = (_rol: RolUsuario | undefined): PaginaApp => {
+  // Página principal de la aplicación.
+  // Se mantiene por rol por compatibilidad, pero el inicio ahora es Resumen para todos.
+  return 'resumen';
 };
 
 const obtenerEstadoInicial = (): EstadoApp => {
   const token = localStorage.getItem('token_acceso');
   if (!token) return 'login';
 
+  const usuario = obtenerUsuarioActual();
+  const paginasPermitidas = paginasPermitidasPorRol(usuario?.rol);
+
   const paginaGuardada = localStorage.getItem(CLAVE_PAGINA_ACTUAL);
-  if (esPaginaValida(paginaGuardada)) {
+  if (esPaginaValida(paginaGuardada) && paginasPermitidas.includes(paginaGuardada)) {
     return paginaGuardada;
   }
 
   localStorage.removeItem(CLAVE_PAGINA_ACTUAL);
-  return 'activos';
+  return paginaInicioPorRol(usuario?.rol);
 };
 
 function App() {
-  const [cargando, setCargando] = useState(true);
   const [estado, setEstado] = useState<EstadoApp>(() => obtenerEstadoInicial());
-  const [tema, setTema] = useState<Tema>(
-    () => (localStorage.getItem('sgi-tema') as Tema) ?? 'claro'
-  );
-  const [acento, setAcento] = useState<Acento>(
-    () => (localStorage.getItem('sgi-acento') as Acento) ?? 'azul'
-  );
-
-  useEffect(() => {
-    const temporizador = setTimeout(() => setCargando(false), 3000);
-    return () => clearTimeout(temporizador);
-  }, []);
+  const [usuarioActual, setUsuarioActual] = useState<UsuarioSesion | null>(() => obtenerUsuarioActual());
+  const [tema, setTema] = useState<Tema>(() => {
+    const guardado = localStorage.getItem('sgi-tema');
+    if (guardado === 'claro' || guardado === 'oscuro' || guardado === 'mixto') return guardado;
+    if (guardado === 'sistema') {
+      const prefiereOscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return prefiereOscuro ? 'oscuro' : 'claro';
+    }
+    return 'claro';
+  });
 
   useEffect(() => {
     const token = localStorage.getItem('token_acceso');
+    const usuario = obtenerUsuarioActual();
+    setUsuarioActual(usuario);
+    const paginasPermitidas = paginasPermitidasPorRol(usuario?.rol);
 
     if (!token && estado !== 'login' && estado !== 'recuperar-contrasena') {
       setEstado('login');
+      return;
+    }
+
+    if (estado !== 'login' && estado !== 'recuperar-contrasena' && !paginasPermitidas.includes(estado)) {
+      setEstado(paginaInicioPorRol(usuario?.rol));
       return;
     }
 
@@ -66,34 +89,41 @@ function App() {
     }
   }, [estado]);
 
-  // Aplica el tema al DOM y lo persiste en localStorage cada vez que cambia
   useEffect(() => {
     const raiz = document.documentElement;
-    // Tema Claro/Oscuro
+
+    raiz.classList.remove(
+      'theme-mixto',
+      'theme-rojo',
+      'theme-naranja',
+      'theme-ambar',
+      'theme-amarillo',
+      'theme-lima',
+      'theme-esmeralda',
+      'theme-cian',
+      'theme-purpura',
+      'theme-violeta',
+      'theme-rosa'
+    );
+
     if (tema === 'oscuro') {
       raiz.classList.add('dark');
     } else if (tema === 'claro') {
       raiz.classList.remove('dark');
-    } else {
-      const prefiereOscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      prefiereOscuro ? raiz.classList.add('dark') : raiz.classList.remove('dark');
+    } else if (tema === 'mixto') {
+      raiz.classList.remove('dark');
+      raiz.classList.add('theme-mixto');
     }
     localStorage.setItem('sgi-tema', tema);
-
-    // Color de Acento
-    raiz.classList.remove('theme-rojo', 'theme-naranja', 'theme-ambar', 'theme-amarillo', 'theme-lima', 'theme-esmeralda', 'theme-cian', 'theme-purpura', 'theme-violeta', 'theme-rosa');
-    if (acento !== 'azul') {
-      raiz.classList.add(`theme-${acento}`);
-    }
-    localStorage.setItem('sgi-acento', acento);
-  }, [tema, acento]);
-
-  if (cargando) return <PantallaCarga />;
+  }, [tema]);
 
   if (estado === 'login') {
     return (
       <InicioSesion
-        onAcceso={() => setEstado('activos')}
+        onAcceso={(usuario) => {
+          setUsuarioActual(usuario);
+          setEstado(paginaInicioPorRol(usuario.rol));
+        }}
         onRecuperar={() => setEstado('recuperar-contrasena')}
       />
     );
@@ -104,23 +134,34 @@ function App() {
   }
 
   const propsPagina = {
-    onNavegar: (pag: PaginaApp) => setEstado(pag),
+    onNavegar: (pag: PaginaApp) => {
+      const paginasPermitidas = paginasPermitidasPorRol(usuarioActual?.rol);
+      if (!paginasPermitidas.includes(pag)) return;
+      setEstado(pag);
+    },
     onCerrarSesion: () => {
       cerrarSesionAuth();
       localStorage.removeItem(CLAVE_PAGINA_ACTUAL);
+      setUsuarioActual(null);
       setEstado('login');
     },
   };
 
   return (
     <ProveedorInventario>
-      {estado === 'prestamos' && <Prestamos        {...propsPagina} />}
-      {estado === 'estudiantes' && <Estudiantes      {...propsPagina} />}
-      {estado === 'docentes' && <Docentes         {...propsPagina} />}
-      {estado === 'material' && <MaterialFungible {...propsPagina} />}
-      {estado === 'configuracion' && <Configuracion    {...propsPagina} temaActivo={tema} onCambiarTema={setTema} acentoActivo={acento} onCambiarAcento={setAcento} />}
-      {estado === 'resumen' && <Resumen {...propsPagina} />}
-      {estado === 'activos' && <Activos {...propsPagina} />}
+      <ProveedorConfirmacion>
+        {estado === 'prestamos' && <Prestamos        {...propsPagina} />}
+        {estado === 'estudiantes' && <Estudiantes      {...propsPagina} />}
+        {estado === 'docentes' && <Docentes         {...propsPagina} />}
+        {estado === 'material' && <MaterialFungible {...propsPagina} />}
+        {estado === 'contenedores' && <Contenedores {...propsPagina} />}
+        {estado === 'configuracion' && <Configuracion    {...propsPagina} temaActivo={tema} onCambiarTema={setTema} />}
+        {estado === 'usuarios' && <Usuarios {...propsPagina} />}
+        {estado === 'auditoria' && <Auditoria {...propsPagina} />}
+        {estado === 'resumen' && <Resumen {...propsPagina} />}
+        {estado === 'activos' && <Activos {...propsPagina} />}
+        <Toaster position="top-right" richColors />
+      </ProveedorConfirmacion>
     </ProveedorInventario>
   );
 }

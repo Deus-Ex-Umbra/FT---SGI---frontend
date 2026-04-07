@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Boton } from '../componentes/ui/button';
-import { Input } from '../componentes/ui/input';
-import { Label } from '../componentes/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../componentes/ui/card';
+import { Boton } from '@/componentes/ui/button';
+import { Input } from '@/componentes/ui/input';
+import { Label } from '@/componentes/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { LogIn, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { iniciarSesion } from '../lib/servicio-autenticacion';
+import { iniciarSesion, type UsuarioSesion } from '@/lib/servicio-autenticacion';
 
 interface Props {
-    onAcceso: () => void;
+    onAcceso: (usuario: UsuarioSesion) => void;
     onRecuperar: () => void;
 }
 
@@ -25,7 +25,7 @@ export const InicioSesion = ({ onAcceso, onRecuperar }: Props) => {
         try {
             const datos = await iniciarSesion(usuario, contrasena);
             console.log('Ingreso exitoso:', datos.usuario.rol);
-            onAcceso();
+            onAcceso(datos.usuario as UsuarioSesion);
         } catch (error: any) {
             setErrorTexto(error.message);
         } finally {
@@ -48,11 +48,11 @@ export const InicioSesion = ({ onAcceso, onRecuperar }: Props) => {
                 <CardContent>
                     <form onSubmit={manejarEnvio} className="space-y-4">
                         <div className="flex flex-col items-center space-y-2 w-full">
-                            <Label htmlFor="usuario" className="text-sm font-medium">Usuario</Label>
+                            <Label htmlFor="usuario" className="text-sm font-medium">Correo (usuario)</Label>
                             <Input
                                 id="usuario"
-                                type="text"
-                                placeholder="Ej: jperez"
+                                type="email"
+                                placeholder="Ej: administrador@institucion.edu"
                                 value={usuario}
                                 onChange={(e) => { setUsuario(e.target.value); setErrorTexto(''); }}
                                 required

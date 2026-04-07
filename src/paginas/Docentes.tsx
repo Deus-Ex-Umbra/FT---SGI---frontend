@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { type PaginaApp } from '../componentes/inventario/MenuLateral';
-import { LayoutPagina } from '../componentes/layout/LayoutPagina';
-import { BarraFiltros } from '../componentes/layout/BarraFiltros';
-import { TablaDocentes } from '../componentes/inventario/TablaDocentes';
-import { FormularioDocente } from '../componentes/inventario/FormularioDocente';
-import { useInventario } from '../contextos/ContextoInventario';
+import { toast } from 'sonner';
+import type { PaginaApp } from '@/tipos/navegacion';
+import { LayoutPagina } from '@/componentes/layout/layout-pagina';
+import { BarraFiltros } from '@/componentes/layout/barra-filtros';
+import { TablaDocentes } from '@/componentes/inventario/tabla-docentes';
+import { FormularioDocente } from '@/componentes/inventario/formulario-docente';
+import { useInventario } from '@/contextos/ContextoInventario';
+import { useConfirmacion } from '@/contextos/ContextoConfirmacion';
 import { LayoutGrid, ListIcon, User, Fingerprint, Award, BookOpen } from 'lucide-react';
-import { TarjetaDato } from '../componentes/ui/TarjetaDato';
+import { TarjetaDato } from '@/componentes/ui/tarjeta-dato';
 
 interface Props {
     onNavegar: (pagina: PaginaApp) => void;
@@ -15,10 +17,20 @@ interface Props {
 
 export const Docentes = ({ onNavegar, onCerrarSesion }: Props) => {
     const { docentes, eliminarDocente } = useInventario();
+    const { confirmar } = useConfirmacion();
     const [mostrarFormulario, setMostrarFormulario] = useState(false);
     const [docenteEdicion, setDocenteEdicion] = useState<(typeof docentes)[number] | null>(null);
     const [busqueda, setBusqueda] = useState('');
     const [vistaTabla, setVistaTabla] = useState(true);
+
+    const obtenerTextoMaterias = (docente: (typeof docentes)[number]) => {
+        const codigos = (docente.materias ?? []).map((m) => m.codigo);
+        const fallback = docente.materia ? [docente.materia] : [];
+        const unicos = Array.from(
+            new Set([...codigos, ...fallback].map((v) => v.trim()).filter(Boolean)),
+        );
+        return unicos.join(', ');
+    };
 
     const abrirRegistro = () => {
         setDocenteEdicion(null);
@@ -31,22 +43,29 @@ export const Docentes = ({ onNavegar, onCerrarSesion }: Props) => {
     };
 
     const borrar = async (docente: (typeof docentes)[number]) => {
-        const ok = window.confirm(`¿Deseas descartar al docente ${docente.nombre} ${docente.apellido}? (borrado blando)`);
+        const ok = await confirmar({
+            titulo: 'Descartar docente',
+            descripcion: `¿Deseas descartar al docente ${docente.nombre} ${docente.apellido}? (borrado blando)`,
+            textoConfirmar: 'Descartar',
+            textoCancelar: 'Cancelar',
+            varianteConfirmar: 'destructive',
+        });
         if (!ok) return;
         try {
             await eliminarDocente(docente.id);
         } catch (err: any) {
-            window.alert(err?.message ?? 'No se pudo descartar el docente.');
+            toast.error(err?.message ?? 'No se pudo descartar el docente.');
         }
     };
 
     const docentesFiltrados = docentes.filter(d => {
         const termino = busqueda.toLowerCase();
+        const materiasTexto = obtenerTextoMaterias(d).toLowerCase();
         return (
             termino === '' ||
             d.nombre.toLowerCase().includes(termino) ||
             d.apellido.toLowerCase().includes(termino) ||
-            d.materia.toLowerCase().includes(termino) ||
+            materiasTexto.includes(termino) ||
             d.codigo.toLowerCase().includes(termino) ||
             d.carnet.toLowerCase().includes(termino)
         );
@@ -67,7 +86,15 @@ export const Docentes = ({ onNavegar, onCerrarSesion }: Props) => {
                     placeholder="Buscar por código, nombre, materia, carnet..."
                     textoResultados={`${docentesFiltrados.length} de ${docentes.length}`}
                 />
-                <div className="ml-4 flex h-9 flex-shrink-0 items-center gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
+                <div className="ml-4 flex items-center gap-3">
+                    <button
+                        onClick={() => onNavegar('configuracion')}
+                        className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                        Catálogos
+                    </button>
+
+                    <div className="flex h-9 flex-shrink-0 items-center gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
                     <button
                         onClick={() => setVistaTabla(true)}
                         className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-bold transition-all ${vistaTabla ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'}`}
@@ -82,6 +109,7 @@ export const Docentes = ({ onNavegar, onCerrarSesion }: Props) => {
                         <LayoutGrid className="h-3.5 w-3.5" />
                         Bloques
                     </button>
+                    </div>
                 </div>
             </div>
 
@@ -108,13 +136,13 @@ export const Docentes = ({ onNavegar, onCerrarSesion }: Props) => {
                             <TarjetaDato
                                 key={doc.id}
                                 titulo={`${doc.apellido}, ${doc.nombre}`}
-                                subtitulo={doc.materia}
+                                subtitulo={obtenerTextoMaterias(doc)}
                                 Icono={User}
                                 badge={{ text: 'DOCENTE', color: 'slate' }}
                                 atributos={[
                                     { label: 'Código', value: doc.codigo, icon: Fingerprint },
                                     { label: 'Carnet', value: doc.carnet, icon: Award },
-                                    { label: 'Materia', value: doc.materia, icon: BookOpen },
+                                    { label: 'Materias', value: obtenerTextoMaterias(doc), icon: BookOpen },
                                 ]}
                             />
                         ))}

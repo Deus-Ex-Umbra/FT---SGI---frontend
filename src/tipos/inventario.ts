@@ -1,15 +1,31 @@
-export type EstadoHerramienta = 'buen_estado' | 'regular' | 'en_mantenimiento' | 'en_prestamo' | 'revision' | 'dado_de_baja' | 'danado';
+export type EstadoHerramienta =
+    // Canónicos
+    | 'disponible'
+    | 'en_prestamo'
+    | 'en_mantenimiento'
+    | 'extraviado'
+    | 'dado_de_baja'
+    // Legacy
+    | 'buen_estado'
+    | 'regular'
+    | 'revision'
+    | 'danado';
+
+export type EstadoFisicoItemActivo = 'bueno' | 'regular' | 'malo';
 export type EstadoPrestamo = 'pendiente' | 'devuelto' | 'vencido' | 'activo' | 'devuelto_fuera_de_fecha_limite';
 
 export interface SubinstanciaHerramienta {
     id: string;
-    codigoInventario: string;
+    codigoInventario?: string;
+    codigoUnico?: string;
     fechaEntrega?: string;
     fechaRetiro?: string;
     estado: EstadoHerramienta;
-    observaciones: string;
-    ue: string;
-    descripcion: string;
+    estadoFisico?: EstadoFisicoItemActivo;
+    ubicacion?: string;
+    observaciones?: string;
+    ue?: string;
+    descripcion?: string;
     precio?: number;
 }
 
@@ -18,21 +34,38 @@ export interface Herramienta {
     nombre: string;
     categoria: string;
     descripcion: string;
-    ue: string;
-    // Propiedades originales de compatibilidad plana
-    codigoInventario?: string;
     estado?: EstadoHerramienta;
     observaciones?: string;
     precio?: number;
-    // Jerarquía
     subinstancias: SubinstanciaHerramienta[];
 }
 
 export interface ContenedorHerramientas {
     id: string;
     nombre: string;
-    ubicacion: string;
+    descripcion: string;
+    ubicacion?: string;
     herramientas: Herramienta[];
+}
+
+export interface ItemActivoResumen {
+    id: string;
+    idActivoPadre: string;
+    nombre: string;
+    categoria: string;
+    descripcion: string;
+    ue: string;
+    codigoInventario?: string;
+    codigoUnico?: string;
+    fechaEntrega?: string;
+    fechaRetiro?: string;
+    estado: EstadoHerramienta;
+    estadoFisico?: EstadoFisicoItemActivo;
+    ubicacion?: string;
+    observaciones?: string;
+    precio?: number;
+    contenedorId?: string;
+    contenedorNombre?: string;
 }
 
 export interface Estudiante {
@@ -43,6 +76,21 @@ export interface Estudiante {
     carrera: string;
     semestre: number;
     carnetRetenido?: boolean;
+    // null/undefined => automático (según préstamos activos)
+    // true/false => override manual persistente
+    carnetRetenidoOverride?: boolean | null;
+    carreraId?: string;
+}
+
+export interface Carrera {
+    id: string;
+    nombre: string;
+}
+
+export interface Materia {
+    id: string;
+    codigo: string;
+    nombre?: string | null;
 }
 
 export interface Docente {
@@ -52,6 +100,7 @@ export interface Docente {
     apellido: string;
     materia: string;
     carnet: string;
+    materias?: Materia[];
 }
 
 export interface Prestamo {
@@ -71,6 +120,13 @@ export interface PrestamoCanastaRegistro {
     grupoCanasta: string | null;
     idsPrestamo: string[];
     carnetEstudiante: string;
+    carnetsEstudiantes: string[];
+    estudiantes: Array<{
+        id?: string;
+        carnet: string;
+        nombre: string;
+        apellido: string;
+    }>;
     idDocente?: string;
     docente: string;
     fechaPrestamo: string;
@@ -86,7 +142,7 @@ export interface PrestamoCanastaRegistro {
         nombre: string;
     }>;
     consumibles: Array<{
-        idLote: number;
+        idLote: string;
         lote: string;
         material: string;
         cantidad: number;
@@ -97,7 +153,9 @@ export interface PrestamoCanastaRegistro {
 
 export interface SubinstanciaMaterial {
     id: string;
-    lote: string;
+    tipo: 'lote' | 'serie' | 'simple';
+    lote?: string | null;
+    serie?: string | null;
     fechaEntrega?: string;
     fechaRetiro?: string;
     cantidadDisponible: number;
@@ -111,18 +169,19 @@ export interface MaterialFungible {
     categoria: string;
     descripcion?: string;
     unidad: string;
+    stockMinimoHabilitado: boolean;
     stockMinimo: number;
-    // Propiedades originales de compatibilidad plana
+    tipoIdentificacion: 'lote' | 'serie' | 'simple';
     cantidadDisponible?: number;
     precio?: number;
-    // Jerarquía
     subinstancias: SubinstanciaMaterial[];
 }
 
 export interface ContenedorMateriales {
     id: string;
     nombre: string;
-    ubicacion: string;
+    descripcion: string;
+    ubicacion?: string;
     materiales: MaterialFungible[];
 }
 
@@ -142,7 +201,8 @@ export interface ItemCanastaConsumible {
 }
 
 export interface CanastaPrestamo {
-    carnetEstudiante: string;
+    carnetEstudiante?: string;
+    carnetsEstudiantes: string[];
     idDocente: string;
     fechaPrestamo: string;
     fechaDevolucion: string;

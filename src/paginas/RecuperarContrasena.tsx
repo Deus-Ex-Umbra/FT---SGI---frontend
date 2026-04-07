@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { KeyRound, Eye, EyeOff, CheckCircle2, ArrowLeft } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../componentes/ui/card';
-import { Input } from '../componentes/ui/input';
-import { Label } from '../componentes/ui/label';
-import { Boton } from '../componentes/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/componentes/ui/card';
+import { Input } from '@/componentes/ui/input';
+import { Label } from '@/componentes/ui/label';
+import { Boton } from '@/componentes/ui/button';
 
 interface Props {
     onVolver: () => void;
