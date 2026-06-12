@@ -1,7 +1,7 @@
 import * as React from "react";
 import { OTPInput, OTPInputContext } from "input-otp";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/utilidades/ui";
 
 const InputOTP = React.forwardRef<
   React.ElementRef<typeof OTPInput>,
@@ -81,3 +81,4 @@ const InputOTPSlot = React.forwardRef<
 InputOTPSlot.displayName = "InputOTPSlot";
 
 export { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot };
+

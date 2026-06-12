@@ -58,9 +58,16 @@ export function useBusquedaPaginacion<T>({
   }, [busqueda, sensible_mayusculas]);
 
   useEffect(() => {
-    if (total_paginas === 0) return;
+    if (total_paginas === 0) {
+      setPaginaActual(1);
+      return;
+    }
     setPaginaActual((p) => Math.min(Math.max(1, p), total_paginas));
   }, [total_paginas]);
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [items_por_pagina]);
 
   return {
     items_filtrados,

@@ -7,7 +7,6 @@
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
-    /* Scrollbar global (elegante) */
     --scrollbar-size: 10px;
     --scrollbar-thumb: 148 163 184;
     --scrollbar-thumb-hover: 100 116 139;
@@ -37,14 +36,13 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
 
-    --radius: 0.5rem;
+    --radius: 0.6rem;
   }
 
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
-    /* Scrollbar global (elegante) */
     --scrollbar-thumb: 100 116 139;
     --scrollbar-thumb-hover: 148 163 184;
 
@@ -80,13 +78,20 @@
     border-color: hsl(var(--border));
   }
 
+  html {
+    font-size: 16px;
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-size: 1.025rem;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
 
-/* Scrollbars globales (nativos): se aplican a toda la interfaz */
 html,
 body {
   scrollbar-width: thin;
@@ -107,15 +112,12 @@ body {
   background: transparent;
 }
 
-/* Evita flechas/botones del scrollbar en Windows (cuando el navegador los renderiza) */
 *::-webkit-scrollbar-button,
 *::-webkit-scrollbar-button:single-button {
   width: 0;
   height: 0;
   display: none;
 }
-
-/* Refuerzo: Radix ScrollArea usa un viewport interno, aseguremos que herede la regla */
 [data-radix-scroll-area-viewport]::-webkit-scrollbar-button,
 [data-radix-scroll-area-viewport]::-webkit-scrollbar-button:single-button,
 [data-radix-scroll-area-viewport]::-webkit-scrollbar-button:increment,
@@ -130,7 +132,6 @@ body {
   background: transparent;
 }
 
-/* Fuerza: oculta el scrollbar NATIVO del viewport (conserva el scroll), para evitar flechas en Electron/Windows */
 [data-radix-scroll-area-viewport] {
   scrollbar-width: none !important;
 }
@@ -289,7 +290,7 @@ body {
 }
 
 .calendar-dropdown {
-  color: rgb(15 23 42);
+  color: rgb(30 41 59);
   max-width: 100%;
 }
 
@@ -297,21 +298,21 @@ body {
   font-size: 10px;
   font-weight: 500;
   padding: 3px 6px;
-  background-color: rgb(241 245 249);
-  color: rgb(15 23 42);
+  background-color: rgb(255 255 255);
+  color: rgb(30 41 59);
 }
 
 .calendar-dropdown-root {
-  max-width: 4.9rem;
+  max-width: 5.5rem;
 }
 
 .calendar-select-viewport {
   scrollbar-width: thin;
-  scrollbar-color: rgb(148 163 184) transparent;
+  scrollbar-color: rgb(203 213 225) transparent;
 }
 
 .calendar-select-viewport::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .calendar-select-viewport::-webkit-scrollbar-track {
@@ -320,17 +321,17 @@ body {
 
 .calendar-select-viewport::-webkit-scrollbar-thumb {
   border-radius: 9999px;
-  background-color: rgb(148 163 184);
-  border: 2px solid transparent;
+  background-color: rgb(203 213 225);
+  border: 1px solid transparent;
   background-clip: content-box;
 }
 
 .dark .calendar-select-viewport {
-  scrollbar-color: rgb(100 116 139) transparent;
+  scrollbar-color: rgb(71 85 105) transparent;
 }
 
 .dark .calendar-select-viewport::-webkit-scrollbar-thumb {
-  background-color: rgb(100 116 139);
+  background-color: rgb(71 85 105);
 }
 
 .dark .calendar-dropdown {
@@ -338,11 +339,48 @@ body {
 }
 
 .dark .calendar-dropdown option {
-  background-color: rgb(30 41 59);
+  background-color: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-/* Scroll elegante reutilizable (modales / ScrollArea) */
+/* ── Overrides react-day-picker v9 ── */
+
+/* Eliminar el scale/zoom en el día seleccionado */
+.rdp-root .rdp-day_button {
+  transform: none !important;
+}
+
+/* Día seleccionado: fondo morado/índigo y texto blanco */
+.rdp-root .rdp-selected .rdp-day_button,
+.rdp-root .rdp-selected > button {
+  background-color: rgb(79 70 229) !important;
+  color: rgb(255 255 255) !important;
+  border-radius: 0.5rem !important;
+  transform: none !important;
+  font-weight: 600 !important;
+}
+
+/* Hover en día seleccionado */
+.rdp-root .rdp-selected .rdp-day_button:hover,
+.rdp-root .rdp-selected > button:hover {
+  background-color: rgb(67 56 202) !important;
+  color: rgb(255 255 255) !important;
+}
+
+/* Números del calendario: más oscuros y nítidos */
+.rdp-root .rdp-day_button {
+  color: rgb(30 41 59);
+  font-weight: 500;
+}
+
+/* Día de hoy: resaltado azul suave */
+.rdp-root .rdp-today .rdp-day_button {
+  background-color: rgb(239 246 255) !important;
+  color: rgb(37 99 235) !important;
+  ring: 1px solid rgb(191 219 254) !important;
+  font-weight: 600 !important;
+}
+
 .scroll-elegante,
 .scroll-elegante [data-radix-scroll-area-viewport] {
   scrollbar-width: thin;

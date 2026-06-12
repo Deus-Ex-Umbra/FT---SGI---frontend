@@ -1,6 +1,12 @@
 export type PaginaApp =
   | 'login'
   | 'resumen'
+  | 'mi-perfil'
+  | 'mis-estudiantes'
+  | 'mis-materias'
+  | 'carreras'
+  | 'materias'
+  | 'grupos-materia'
   | 'activos'
   | 'contenedores'
   | 'prestamos'
@@ -8,5 +14,6 @@ export type PaginaApp =
   | 'docentes'
   | 'material'
   | 'auditoria'
+  | 'inventarios'
   | 'usuarios'
   | 'configuracion';

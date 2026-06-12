@@ -3,10 +3,10 @@
 import * as React from "react"
 import { Check, ChevronDown, X } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/utilidades/ui"
 import { Popover, PopoverAnchor, PopoverContent } from "@/componentes/ui/popover"
 
-type ComboboxOption = string | { value: string; label: string }
+type ComboboxOption = any
 
 interface ComboboxContextValue<T extends ComboboxOption> {
     items: readonly T[]
@@ -58,21 +58,22 @@ function Combobox<T extends ComboboxOption>({
 
     const readItemValue = React.useCallback((item: T) => {
         if (getItemValue) return getItemValue(item)
-        return typeof item === "string" ? item : item.value
+        return typeof item === "string" ? item : (item as any).value
     }, [getItemValue])
 
     const readItemLabel = React.useCallback((item: T) => {
         if (getItemLabel) return getItemLabel(item)
-        return typeof item === "string" ? item : item.label
+        return typeof item === "string" ? item : (item as any).label
     }, [getItemLabel])
 
     const filteredItems = React.useMemo(() => {
-        const normalized = query.trim().toLowerCase()
+        const normalizeStr = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        const normalized = normalizeStr(query.trim())
         if (!normalized) return items
 
         return items.filter((item) => {
-            const itemValue = readItemValue(item).toLowerCase()
-            const itemLabel = readItemLabel(item).toLowerCase()
+            const itemValue = normalizeStr(readItemValue(item))
+            const itemLabel = normalizeStr(readItemLabel(item))
             return itemValue.includes(normalized) || itemLabel.includes(normalized)
         })
     }, [items, query, readItemLabel, readItemValue])
@@ -188,6 +189,7 @@ function ComboboxContent({ className, children }: React.HTMLAttributes<HTMLDivEl
     return (
         <PopoverContent
             align="start"
+            onOpenAutoFocus={(e) => e.preventDefault()}
             className={cn(
                 "z-[10050] w-[var(--radix-popover-trigger-width)] border-slate-200 bg-white p-1 text-slate-900 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
                 className

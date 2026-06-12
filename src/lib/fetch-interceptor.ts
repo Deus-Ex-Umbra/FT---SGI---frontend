@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { API_BASE_URL } from './api';
 
 type FetchInput = Parameters<typeof fetch>[0];
 
@@ -16,20 +17,13 @@ const DESCRIPCION_CONEXION = 'Revisa que el backend esté encendido y accesible.
 const MENSAJE_SERVIDOR = 'El servidor no está disponible en este momento.';
 const DESCRIPCION_SERVIDOR = 'Puede ser un problema interno o de base de datos.';
 
-const defaultApiBaseUrl = () => {
-  const fromEnv = (import.meta as any)?.env?.VITE_API_BASE_URL as string | undefined;
-  return (fromEnv && fromEnv.trim()) || 'http://localhost:3001';
-};
-
 const obtenerUrl = (input: FetchInput): string => {
   if (typeof input === 'string') return input;
   if (input instanceof URL) return input.toString();
-  // Request
   return input.url;
 };
 
 const esErrorDeRed = (err: unknown) => {
-  // En navegadores/Electron, los errores de red en fetch suelen ser TypeError.
   if (!(err instanceof Error)) return false;
   if (err.name === 'AbortError') return false;
 
@@ -45,11 +39,7 @@ const esErrorDeRed = (err: unknown) => {
 };
 
 const esRequestApi = (url: string, apiBaseUrl: string) => {
-  // Evita mostrar sonner por assets/requests del propio frontend.
   if (!url) return false;
-
-  // En este repo los servicios llaman al backend con URL absoluta (http://localhost:3001/...).
-  // No interceptamos rutas relativas para evitar falsos positivos (assets del frontend).
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url.startsWith(apiBaseUrl);
   }
@@ -83,7 +73,7 @@ export const instalarInterceptorFetch = (opciones?: OpcionesInterceptor) => {
 
   instalado = true;
 
-  const apiBaseUrl = (opciones?.apiBaseUrl ?? defaultApiBaseUrl()).trim();
+  const apiBaseUrl = (opciones?.apiBaseUrl ?? API_BASE_URL).trim();
   const intervaloMs = opciones?.intervaloMs ?? 8000;
 
   const originalFetch = window.fetch.bind(window);
@@ -97,7 +87,6 @@ export const instalarInterceptorFetch = (opciones?: OpcionesInterceptor) => {
 
       if (esApi && resp.status >= 500) {
         notificarSiCorresponde('servidor', intervaloMs);
-        // Log para diagnóstico.
         console.error('[API] Respuesta 5xx', { url, status: resp.status, statusText: resp.statusText });
       }
 

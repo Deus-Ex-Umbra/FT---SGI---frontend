@@ -1,9 +1,10 @@
 import * as React from "react"
 import { DayPicker, getDefaultClassNames } from "react-day-picker"
+import type { DropdownProps } from "react-day-picker"
 import { es } from "date-fns/locale"
 import "react-day-picker/dist/style.css"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/utilidades/ui"
 import {
   Select,
   SelectContent,
@@ -14,51 +15,63 @@ import {
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
-type CalendarDropdownProps = {
-  className?: string
-  classNames: Record<string, string>
-  components: Record<string, unknown>
-  disabled?: boolean
-  onChange?: React.ChangeEventHandler<HTMLSelectElement>
-  options?: Array<{
-    disabled: boolean
-    label: string
-    value: number
-  }>
-} & Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "children">
-
-function CalendarDropdown({ className, disabled, onChange, options, value }: CalendarDropdownProps) {
+function CalendarDropdown({ className, disabled, onChange, options, value }: DropdownProps) {
   const selectedValue = Array.isArray(value)
     ? String(value[0] ?? "")
     : value == null
-      ? undefined
+      ? ""
       : String(value)
-  const selectedOption = options?.find((option) => String(option.value) === selectedValue)
-  const isYearDropdown = className?.includes("years_dropdown") ?? false
+
+  const isYearDropdown = options && options.length > 0 && options[0].value > 31
+
+  const handleValueChange = React.useCallback(
+    (newValue: string) => {
+      const mockEvent = {
+        target: {
+          value: newValue,
+          name: isYearDropdown ? "years" : "months",
+        },
+      } as unknown as React.ChangeEvent<HTMLSelectElement>
+      onChange?.(mockEvent)
+    },
+    [onChange, isYearDropdown]
+  )
+
+  const currentOption = options?.find((opt) => String(opt.value) === selectedValue)
 
   return (
-    <div className={cn("calendar-daypicker-dropdown", className)}>
+    <div 
+      className={cn("calendar-daypicker-dropdown relative", isYearDropdown ? "w-[5.8rem]" : "w-[6.8rem]", className)}
+    >
       <Select
-        disabled={disabled}
         value={selectedValue}
-        onValueChange={(nextValue) => {
-          onChange?.({
-            target: { value: nextValue },
-          } as React.ChangeEvent<HTMLSelectElement>)
-        }}
+        onValueChange={handleValueChange}
+        disabled={disabled}
       >
         <SelectTrigger
           className={cn(
-            "h-5.5 border-slate-300 bg-slate-100 px-1 text-[11px] font-medium shadow-none dark:border-slate-600 dark:bg-slate-800",
-            isYearDropdown ? "w-[3.6rem]" : "w-[4.25rem]"
+            "h-7 w-full border border-slate-350 dark:border-slate-650 bg-slate-100/80 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 focus:ring-1 focus:ring-slate-400",
+            "text-[12px] font-semibold text-slate-700 dark:text-slate-100 rounded-md px-1.5 shadow-sm gap-1"
           )}
-          aria-label={isYearDropdown ? "Seleccionar año" : "Seleccionar mes"}
         >
-          <SelectValue>{selectedOption?.label}</SelectValue>
+          <SelectValue placeholder={selectedValue}>
+            {currentOption?.label ?? selectedValue}
+          </SelectValue>
         </SelectTrigger>
-        <SelectContent className={cn("p-0.5", isYearDropdown ? "w-[3.6rem]" : "w-[4.25rem]")} position="popper">
+        <SelectContent
+          position="popper"
+          className={cn(
+            "max-h-[160px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md rounded-md z-[10060]",
+            isYearDropdown ? "w-[5.8rem]" : "w-[6.8rem]"
+          )}
+        >
           {options?.map((option) => (
-            <SelectItem key={option.value} value={String(option.value)} disabled={option.disabled}>
+            <SelectItem
+              key={option.value}
+              value={String(option.value)}
+              disabled={option.disabled}
+              className="text-[12px] py-1 pl-6 pr-2 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            >
               {option.label}
             </SelectItem>
           ))}
@@ -80,46 +93,51 @@ function Calendar({ className, classNames, showOutsideDays = true, locale = es, 
         ...defaultClassNames,
         root: cn(
           defaultClassNames.root,
-          "rdp-root rounded-md bg-white text-[12px] text-slate-900 [--rdp-day-height:1.28rem] [--rdp-day-width:1.28rem] [--rdp-day_button-height:1.28rem] [--rdp-day_button-width:1.28rem] [--rdp-nav-height:1.35rem] [--rdp-nav_button-height:1rem] [--rdp-nav_button-width:1rem] [--rdp-weekday-padding:0.05rem_0] [--rdp-months-gap:0.15rem] dark:bg-slate-900 dark:text-slate-100"
+          "rdp-root rounded-xl bg-white text-[13px] text-slate-900 [--rdp-day-height:2rem] [--rdp-day-width:2rem] [--rdp-day_button-height:2rem] [--rdp-day_button-width:2rem] [--rdp-nav-height:1.75rem] [--rdp-nav_button-height:1.4rem] [--rdp-nav_button-width:1.4rem] [--rdp-weekday-padding:0.15rem_0] [--rdp-months-gap:0.25rem] dark:bg-slate-900 dark:text-slate-100"
         ),
-        months: cn(defaultClassNames.months, "flex flex-col gap-0.5"),
-        month: cn(defaultClassNames.month, "space-y-0.5"),
-        month_caption: cn(defaultClassNames.month_caption, "relative flex items-center justify-center px-3 pt-0 text-[11px] font-semibold leading-none"),
-        caption_label: cn(defaultClassNames.caption_label, "text-[11px] font-semibold leading-none"),
-        dropdowns: cn(defaultClassNames.dropdowns, "h-5.5 items-center gap-0.5"),
-        months_dropdown: cn(defaultClassNames.months_dropdown, "w-[4.25rem]"),
-        years_dropdown: cn(defaultClassNames.years_dropdown, "w-[3.6rem]"),
-        dropdown_root: cn(defaultClassNames.dropdown_root, "h-5.5 overflow-hidden"),
-        dropdown: cn(defaultClassNames.dropdown, "h-5.5 w-full text-[11px]"),
-        nav: cn(defaultClassNames.nav, "flex items-center gap-0.5"),
-        button_previous:
-          cn(
-            defaultClassNames.button_previous,
-            "inline-flex items-center justify-center rounded-md border border-slate-300 bg-white p-0 text-slate-700 opacity-95 transition-opacity hover:opacity-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
-          ),
-        button_next:
-          cn(
-            defaultClassNames.button_next,
-            "inline-flex items-center justify-center rounded-md border border-slate-300 bg-white p-0 text-slate-700 opacity-95 transition-opacity hover:opacity-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
-          ),
+        months: cn(defaultClassNames.months, "flex flex-col gap-1"),
+        month: cn(defaultClassNames.month, "space-y-2"),
+        month_caption: cn(
+          defaultClassNames.month_caption,
+          "relative flex items-center justify-center px-2 pb-1 pt-0"
+        ),
+        caption_label: cn(defaultClassNames.caption_label, "text-[13px] font-semibold text-slate-800 dark:text-slate-100"),
+        dropdowns: cn(defaultClassNames.dropdowns, "h-7 flex items-center gap-1"),
+        months_dropdown: cn(defaultClassNames.months_dropdown, "w-[6.5rem] max-w-[6.5rem]"),
+        years_dropdown: cn(defaultClassNames.years_dropdown, "w-[5.5rem] max-w-[5.5rem]"),
+        dropdown_root: cn(defaultClassNames.dropdown_root, "h-7 overflow-visible"),
+        dropdown: cn(defaultClassNames.dropdown, "h-7 w-full text-[13px]"),
+        nav: cn(defaultClassNames.nav, "flex items-center gap-1"),
+        button_previous: cn(
+          defaultClassNames.button_previous,
+          "inline-flex items-center justify-center rounded-md border-0 bg-transparent p-0 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+        ),
+        button_next: cn(
+          defaultClassNames.button_next,
+          "inline-flex items-center justify-center rounded-md border-0 bg-transparent p-0 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+        ),
         month_grid: cn(defaultClassNames.month_grid, "w-full border-collapse"),
         weekdays: cn(defaultClassNames.weekdays, ""),
-        weekday: cn(defaultClassNames.weekday, "text-[10px] font-medium leading-none text-muted-foreground"),
+        weekday: cn(
+          defaultClassNames.weekday,
+          "pb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500"
+        ),
         week: cn(defaultClassNames.week, ""),
-        day: cn(defaultClassNames.day, "p-0 text-center text-[11px] align-middle"),
-        day_button:
-          cn(
-            defaultClassNames.day_button,
-            "rounded-md p-0 text-[11px] leading-none font-medium aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground"
-          ),
-        selected:
-          cn(
-            defaultClassNames.selected,
-            "bg-primary text-[11px] font-semibold text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground"
-          ),
-        today: cn(defaultClassNames.today, "bg-accent text-accent-foreground"),
-        outside: cn(defaultClassNames.outside, "text-muted-foreground opacity-50"),
-        disabled: cn(defaultClassNames.disabled, "text-muted-foreground opacity-50"),
+        day: cn(defaultClassNames.day, "p-0 text-center text-[13px] align-middle"),
+        day_button: cn(
+          defaultClassNames.day_button,
+          "rounded-lg p-0 text-[13px] font-medium text-slate-800 transition-colors duration-100 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+        ),
+        selected: cn(
+          defaultClassNames.selected,
+          "!scale-100 rounded-lg !bg-indigo-600 !text-white [&>button]:!bg-indigo-600 [&>button]:!text-white [&>button]:!ring-0 [&>button]:!outline-none [&>button]:hover:!bg-indigo-700 dark:!bg-indigo-500 dark:[&>button]:!bg-indigo-500 dark:[&>button]:!text-white"
+        ),
+        today: cn(
+          defaultClassNames.today,
+          "rounded-lg bg-blue-50 font-semibold text-blue-700 dark:bg-slate-800 dark:text-slate-100"
+        ),
+        outside: cn(defaultClassNames.outside, "text-slate-300 opacity-60 dark:text-slate-600"),
+        disabled: cn(defaultClassNames.disabled, "text-slate-300 opacity-40 dark:text-slate-600"),
         hidden: cn(defaultClassNames.hidden, "invisible"),
         ...classNames,
       }}

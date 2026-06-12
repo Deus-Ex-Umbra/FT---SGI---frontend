@@ -1,7 +1,7 @@
 import * as React from "react"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/utilidades/ui"
 
 const Tabs = TabsPrimitive.Root
 
@@ -12,13 +12,14 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-9 items-center justify-center rounded-lg bg-slate-100 p-1 text-slate-500 dark:bg-slate-800",
+      "flex items-center border-b border-slate-200 dark:border-slate-700",
       className
     )}
     {...props}
   />
 ))
 TabsList.displayName = TabsPrimitive.List.displayName
+
 
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
@@ -27,7 +28,15 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-700 dark:data-[state=active]:text-blue-400",
+      "flex items-center gap-2 pb-3 px-4",
+      "text-sm font-bold whitespace-nowrap",
+      "border-b-2 -mb-px",
+      "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200",
+      "data-[state=active]:border-blue-600 data-[state=active]:text-blue-600",
+      "dark:data-[state=active]:border-blue-400 dark:data-[state=active]:text-blue-400",
+      "transition-all duration-200 ease-in-out outline-none",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:rounded-sm",
+      "disabled:pointer-events-none disabled:opacity-50",
       className
     )}
     {...props}
@@ -41,10 +50,15 @@ const TabsContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Content
     ref={ref}
-    className={cn("mt-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30", className)}
+    className={cn(
+      "mt-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30",
+      "animate-fade-in",
+      className
+    )}
     {...props}
   />
 ))
 TabsContent.displayName = TabsPrimitive.Content.displayName
 
 export { Tabs, TabsList, TabsTrigger, TabsContent }
+

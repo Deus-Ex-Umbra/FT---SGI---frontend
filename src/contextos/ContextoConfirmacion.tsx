@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utilidades/ui';
 import { buttonVariants } from '@/componentes/ui/button';
 import {
   AlertDialog,
@@ -64,7 +64,6 @@ export const ProveedorConfirmacion = ({ children }: { children: React.ReactNode 
       <AlertDialog
         open={abierto}
         onOpenChange={(open) => {
-          // Si se cierra desde fuera (ESC/click overlay), equivale a cancelar.
           if (!open && abierto) resolver(false);
           setAbierto(open);
         }}
@@ -90,3 +89,4 @@ export const ProveedorConfirmacion = ({ children }: { children: React.ReactNode 
     </ContextoConfirmacion.Provider>
   );
 };
+

@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
-import { cn } from "@/lib/utils"
+import { cn } from "@/utilidades/ui"
 import { Boton } from "@/componentes/ui/button"
 import { Input } from "@/componentes/ui/input"
 import { Separator } from "@/componentes/ui/separator"
@@ -753,3 +753,4 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+

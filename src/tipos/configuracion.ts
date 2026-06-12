@@ -7,3 +7,11 @@ export interface ActualizarConfiguracionIAPayload {
   geminiApiUrl?: string;
   geminiApiKey?: string;
 }
+
+export interface ConfiguracionRegistroEstudiante {
+  habilitado: boolean;
+}
+
+export interface ActualizarConfiguracionRegistroEstudiantePayload {
+  habilitado: boolean;
+}

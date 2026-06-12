@@ -1,17 +1,58 @@
 import { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
+import { obtenerUsuarioActual } from '@/lib/servicio-autenticacion';
 import type {
     ContenedorHerramientas, Herramienta, SubinstanciaHerramienta,
     ContenedorMateriales, MaterialFungible, SubinstanciaMaterial,
-    Estudiante, Prestamo, Docente, Materia, Carrera, ItemActivoResumen
+    Estudiante, Prestamo, Docente, Materia, Carrera, ItemActivoResumen,
+    EstadoPrestamo
 } from '@/tipos/inventario';
 import {
     cargarActivosDesdeBackend,
     cargarContenedoresCompartidosDesdeBackend,
+    crearContenedorActivoEnBackend,
+    crearContenedorCompartidoEnBackend,
+    editarContenedorCompartidoEnBackend,
+    editarContenedorActivoEnBackend,
+    editarActivoFijoEnBackend,
+    eliminarActivoFijoEnBackend,
+    crearActivoFijoEnBackend,
+    editarItemActivoEnBackend,
+    eliminarItemActivoEnBackend,
+    crearItemActivoEnBackend,
+    eliminarContenedorCompartidoEnBackend,
     cargarMaterialesDesdeBackend,
+    crearContenedorMaterialEnBackend,
+    editarContenedorMaterialEnBackend,
+    crearCajaMaterialEnBackend,
+    crearLoteMaterialEnBackend,
+    editarCajaMaterialEnBackend,
+    editarLoteMaterialEnBackend,
+    eliminarContenedorMaterialEnBackend,
+    eliminarCajaMaterialEnBackend,
+    eliminarLoteMaterialEnBackend,
+} from '@/lib/servicio-activos';
+import {
     cargarPrestamosDesdeBackend,
+    crearPrestamoEnBackend,
+    editarPrestamoEnBackend,
+    extenderPrestamoEnBackend,
+    devolverPrestamoEnBackend,
+} from '@/lib/servicio-prestamos';
+import {
     cargarEstudiantesDesdeBackend,
+    crearEstudianteEnBackend,
+    editarEstudianteEnBackend,
+    eliminarEstudianteEnBackend,
+    actualizarRetencionCueEnBackend,
+} from '@/lib/servicio-estudiantes';
+import {
     cargarDocentesDesdeBackend,
+    crearDocenteEnBackend,
+    editarDocenteEnBackend,
+    eliminarDocenteEnBackend,
+} from '@/lib/servicio-docentes';
+import {
     cargarMateriasDesdeBackend,
     crearMateriaEnBackend,
     editarMateriaEnBackend,
@@ -20,39 +61,10 @@ import {
     crearCarreraEnBackend,
     editarCarreraEnBackend,
     eliminarCarreraEnBackend,
-    crearEstudianteEnBackend,
-    editarEstudianteEnBackend,
-    eliminarEstudianteEnBackend,
-    crearDocenteEnBackend,
-    editarDocenteEnBackend,
-    eliminarDocenteEnBackend,
-    crearPrestamoEnBackend,
-    editarPrestamoEnBackend,
-    extenderPrestamoEnBackend,
-    devolverPrestamoEnBackend,
-    editarActivoFijoEnBackend,
-    eliminarActivoFijoEnBackend,
-    editarItemActivoEnBackend,
-    crearActivoFijoEnBackend,
-    crearItemActivoEnBackend,
-    eliminarItemActivoEnBackend,
-    crearContenedorActivoEnBackend,
-    crearContenedorCompartidoEnBackend,
-    editarContenedorCompartidoEnBackend,
-    editarContenedorActivoEnBackend,
-    crearContenedorMaterialEnBackend,
-    editarContenedorMaterialEnBackend,
-    crearCajaMaterialEnBackend,
-    crearLoteMaterialEnBackend,
-    editarCajaMaterialEnBackend,
-    editarLoteMaterialEnBackend,
-    eliminarContenedorCompartidoEnBackend,
-    eliminarContenedorMaterialEnBackend,
-    eliminarCajaMaterialEnBackend,
-    eliminarLoteMaterialEnBackend,
-} from '@/lib/servicio-inventario';
+} from '@/lib/servicio-catalogo';
 
 interface ContextoInventarioTipo {
+    cargando: boolean;
     contenedoresCompartidos: Array<{ id: string; nombre: string; descripcion: string; idActivo?: number; idMaterial?: number }>;
     contenedoresHerramientas: ContenedorHerramientas[];
     contenedoresMateriales: ContenedorMateriales[];
@@ -64,17 +76,18 @@ interface ContextoInventarioTipo {
     docentes: Docente[];
     materias: Materia[];
     carreras: Carrera[];
-    agregarEstudiante: (e: Omit<Estudiante, 'id'>) => Promise<Estudiante>;
+    agregarEstudiante: (datos: Omit<Estudiante, 'id'>) => Promise<Estudiante>;
     editarEstudiante: (id: string, datos: Partial<Omit<Estudiante, 'id'>>) => Promise<void>;
     eliminarEstudiante: (id: string) => Promise<void>;
+    actualizarRetencionCue: (id: string, datos: { carnetRetenido?: boolean; carnetRetenidoOverride?: boolean | null }) => Promise<void>;
     agregarDocente: (d: Omit<Docente, 'id'>) => Promise<Docente>;
     editarDocente: (id: string, datos: Partial<Omit<Docente, 'id'>>) => Promise<void>;
     eliminarDocente: (id: string) => Promise<void>;
-    agregarMateria: (m: { codigo: string; nombre?: string | null }) => Promise<Materia>;
-    editarMateria: (id: string, datos: Partial<{ codigo: string; nombre: string | null }>) => Promise<void>;
+    agregarMateria: (m: { codigo: string; nombre?: string | null; descripcion?: string | null; carrerasIds?: string[]; docentesIds?: string[] }) => Promise<Materia>;
+    editarMateria: (id: string, datos: Partial<{ nombre: string | null; descripcion: string | null; carrerasIds: string[]; docentesIds: string[] }>) => Promise<void>;
     eliminarMateria: (id: string) => Promise<void>;
-    agregarCarrera: (c: { nombre: string }) => Promise<Carrera>;
-    editarCarrera: (id: string, datos: Partial<{ nombre: string }>) => Promise<void>;
+    agregarCarrera: (c: { nombre: string; prefijoCu: string; inventariosIds?: number[] }) => Promise<Carrera>;
+    editarCarrera: (id: string, datos: Partial<{ nombre: string; prefijoCu: string; inventariosIds: number[] }>) => Promise<void>;
     eliminarCarrera: (id: string) => Promise<void>;
     agregarPrestamo: (p: Omit<Prestamo, 'id' | 'estado'>) => Promise<void>;
     editarPrestamo: (id: string, datos: Partial<Omit<Prestamo, 'id'>>) => Promise<void>;
@@ -119,6 +132,7 @@ export const useInventario = () => {
 };
 
 export const ProveedorInventario = ({ children }: { children: React.ReactNode }) => {
+    const [cargando, setCargando] = useState<boolean>(true);
     const [contenedoresCompartidos, setContenedoresCompartidos] = useState<Array<{ id: string; nombre: string; descripcion: string; idActivo?: number; idMaterial?: number }>>([]);
     const [contenedoresHerramientas, setContenedoresHerramientas] = useState<ContenedorHerramientas[]>([]);
     const [contenedoresMateriales, setContenedoresMateriales] = useState<ContenedorMateriales[]>([]);
@@ -129,40 +143,69 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
     const [materias, setMaterias] = useState<Materia[]>([]);
     const [carreras, setCarreras] = useState<Carrera[]>([]);
 
-    const cargarDesdeBackend = async () => {
-            try {
-                const [contenedoresBd, activosBd, materialesBd, prestamosBd, estudiantesBd, docentesBd, materiasBd, carrerasBd] = await Promise.all([
-                    cargarContenedoresCompartidosDesdeBackend(),
-                    cargarActivosDesdeBackend(),
-                    cargarMaterialesDesdeBackend(),
-                    cargarPrestamosDesdeBackend(),
-                    cargarEstudiantesDesdeBackend(),
-                    cargarDocentesDesdeBackend(),
-                    cargarMateriasDesdeBackend(),
-                    cargarCarrerasDesdeBackend(),
-                ]);
+    const ordenarDocentes = (items: Docente[]) => {
+        return [...items].sort((a, b) => {
+            const cmpCodigo = a.codigo.localeCompare(b.codigo, undefined, { sensitivity: 'base' });
+            if (cmpCodigo !== 0) return cmpCodigo;
+            const cmpNombre = `${a.nombre} ${a.apellido}`.localeCompare(`${b.nombre} ${b.apellido}`, undefined, { sensitivity: 'base' });
+            if (cmpNombre !== 0) return cmpNombre;
+            return String(a.id).localeCompare(String(b.id), undefined, { numeric: true, sensitivity: 'base' });
+        });
+    };
 
-                setContenedoresCompartidos(contenedoresBd);
-                setContenedoresHerramientas(activosBd);
-                setContenedoresMateriales(materialesBd.contenedores);
-                setCatalogoMaterialesFungibles(materialesBd.catalogo);
-                setPrestamos(prestamosBd);
-                setEstudiantes(estudiantesBd);
-                setDocentes(docentesBd);
-                setMaterias(materiasBd);
-                setCarreras(carrerasBd);
-            } catch {
-                setContenedoresCompartidos([]);
-                setContenedoresHerramientas([]);
-                setContenedoresMateriales([]);
-                setCatalogoMaterialesFungibles([]);
-                setPrestamos([]);
-                setEstudiantes([]);
-                setDocentes([]);
-                setMaterias([]);
-                setCarreras([]);
-            }
-        };
+    const cargarDesdeBackend = async () => {
+        try {
+            setCargando(true);
+            const usuario = obtenerUsuarioActual();
+            const rol = usuario?.rol;
+            const esAdminOEncargado = rol === 'administrador' || rol === 'encargado_inventario';
+            const promesas = [
+                esAdminOEncargado ? cargarContenedoresCompartidosDesdeBackend() : Promise.resolve([]),
+                cargarActivosDesdeBackend(),
+                esAdminOEncargado ? cargarMaterialesDesdeBackend() : Promise.resolve({ contenedores: [], catalogo: [] }),
+                cargarPrestamosDesdeBackend(),
+                (esAdminOEncargado || rol === 'docente') ? cargarEstudiantesDesdeBackend() : Promise.resolve([]),
+                cargarDocentesDesdeBackend(),
+                cargarMateriasDesdeBackend(),
+                cargarCarrerasDesdeBackend(),
+            ];
+
+            const resultados = await Promise.all(
+                promesas.map((p, index) =>
+                    p.catch((err) => {
+                        console.warn(`Error cargando recurso de inventario en índice ${index}:`, err);
+                        if (index === 2) return { contenedores: [], catalogo: [] };
+                        return [];
+                    })
+                )
+            );
+
+            const [
+                contenedoresBd,
+                activosBd,
+                materialesBd,
+                prestamosBd,
+                estudiantesBd,
+                docentesBd,
+                materiasBd,
+                carrerasBd
+            ] = resultados as [any, any, any, any, any, any, any, any];
+
+            setContenedoresCompartidos(contenedoresBd);
+            setContenedoresHerramientas(activosBd);
+            setContenedoresMateriales(materialesBd.contenedores);
+            setCatalogoMaterialesFungibles(materialesBd.catalogo);
+            setPrestamos(prestamosBd);
+            setEstudiantes(estudiantesBd);
+            setDocentes(ordenarDocentes(docentesBd));
+            setMaterias(materiasBd);
+            setCarreras(carrerasBd);
+        } catch (err) {
+            console.error('Error cargando datos desde el backend en useInventario:', err);
+        } finally {
+            setCargando(false);
+        }
+    };
 
     useEffect(() => {
         void cargarDesdeBackend();
@@ -188,6 +231,7 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
                 precio: item.precio,
                 contenedorId: contenedor.id,
                 contenedorNombre: contenedor.nombre,
+                idInventario: activo.idInventario,
             })),
         ),
     ), [contenedoresHerramientas]);
@@ -199,7 +243,9 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
                 ...m,
                 id: sub.id,
                 cantidadDisponible: sub.cantidadDisponible,
-                precio: sub.precio
+                precio: sub.precio,
+                lote: sub.lote,
+                serie: sub.serie
             }));
         })
     ), [contenedoresMateriales]);
@@ -215,6 +261,11 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
         setEstudiantes(prev => prev.map(e => e.id === id ? actualizado : e));
     };
 
+    const actualizarRetencionCue = async (id: string, datos: { carnetRetenido?: boolean; carnetRetenidoOverride?: boolean | null }) => {
+        const actualizado = await actualizarRetencionCueEnBackend(id, datos);
+        setEstudiantes(prev => prev.map(e => e.id === id ? actualizado : e));
+    };
+
     const eliminarEstudiante = async (id: string) => {
         await eliminarEstudianteEnBackend(id);
         setEstudiantes(prev => prev.filter(e => e.id !== id));
@@ -222,13 +273,13 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
 
     const agregarDocente = async (datos: Omit<Docente, 'id'>) => {
         const creado = await crearDocenteEnBackend(datos);
-        setDocentes(prev => [...prev, creado]);
+        setDocentes(prev => ordenarDocentes([...prev, creado]));
         return creado;
     };
 
     const editarDocente = async (id: string, datos: Partial<Omit<Docente, 'id'>>) => {
         const actualizado = await editarDocenteEnBackend(id, datos);
-        setDocentes(prev => prev.map(d => d.id === id ? actualizado : d));
+        setDocentes(prev => ordenarDocentes(prev.map(d => d.id === id ? actualizado : d)));
     };
 
     const eliminarDocente = async (id: string) => {
@@ -236,30 +287,35 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
         setDocentes(prev => prev.filter(d => d.id !== id));
     };
 
-    const agregarMateria = async (datos: { codigo: string; nombre?: string | null }) => {
+    const agregarMateria = async (datos: { codigo: string; nombre?: string | null; descripcion?: string | null; carrerasIds?: string[]; docentesIds?: string[] }) => {
         const creada = await crearMateriaEnBackend(datos);
         setMaterias(prev => [...prev, creada].sort((a, b) => a.codigo.localeCompare(b.codigo)));
+        const docentesBd = await cargarDocentesDesdeBackend();
+        setDocentes(ordenarDocentes(docentesBd));
         return creada;
     };
 
-    const editarMateria = async (id: string, datos: Partial<{ codigo: string; nombre: string | null }>) => {
+    const editarMateria = async (id: string, datos: Partial<{ nombre: string | null; descripcion: string | null; carrerasIds: string[]; docentesIds: string[] }>) => {
         const actualizada = await editarMateriaEnBackend(id, datos);
         setMaterias(prev => prev.map(m => m.id === id ? actualizada : m).sort((a, b) => a.codigo.localeCompare(b.codigo)));
+        const docentesBd = await cargarDocentesDesdeBackend();
+        setDocentes(ordenarDocentes(docentesBd));
     };
 
     const eliminarMateria = async (id: string) => {
         await eliminarMateriaEnBackend(id);
         setMaterias(prev => prev.filter(m => m.id !== id));
-        // No recargamos docentes automáticamente; la UI fuerza a desasignar antes de eliminar.
+        const docentesBd = await cargarDocentesDesdeBackend();
+        setDocentes(ordenarDocentes(docentesBd));
     };
 
-    const agregarCarrera = async (datos: { nombre: string }) => {
+    const agregarCarrera = async (datos: { nombre: string; prefijoCu: string; inventariosIds?: number[] }) => {
         const creada = await crearCarreraEnBackend(datos);
         setCarreras(prev => [...prev, creada].sort((a, b) => a.nombre.localeCompare(b.nombre)));
         return creada;
     };
 
-    const editarCarrera = async (id: string, datos: Partial<{ nombre: string }>) => {
+    const editarCarrera = async (id: string, datos: Partial<{ nombre: string; prefijoCu: string; inventariosIds: number[] }>) => {
         const actualizada = await editarCarreraEnBackend(id, datos);
         setCarreras(prev => prev.map(c => c.id === id ? actualizada : c).sort((a, b) => a.nombre.localeCompare(b.nombre)));
     };
@@ -297,6 +353,7 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
             fechaPrestamo: toApiDateTime(datos.fechaPrestamo) ?? '',
             fechaDevolucion: toApiDateTime(datos.fechaDevolucion ?? datos.fechaPrestamo) ?? '',
             observaciones: datos.observaciones,
+            carnetRetenido: datos.carnetRetenido,
         });
 
         setPrestamos(prev => [...prev, creado]);
@@ -312,7 +369,8 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
             fechaDevolucion: string | null;
             observaciones: string;
             idDocente: number;
-            estado: 'pendiente' | 'devuelto' | 'vencido' | 'activo' | 'devuelto_fuera_de_fecha_limite'
+            estado: EstadoPrestamo;
+            carnetRetenido?: boolean;
         }> = {};
 
         if (datos.carnetEstudiante !== undefined) payload.carnetEstudiante = datos.carnetEstudiante;
@@ -321,6 +379,7 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
         if (datos.fechaDevolucion !== undefined) payload.fechaDevolucion = toApiDateTime(datos.fechaDevolucion);
         if (datos.observaciones !== undefined) payload.observaciones = datos.observaciones;
         if (datos.estado !== undefined) payload.estado = datos.estado;
+        if (datos.carnetRetenido !== undefined) payload.carnetRetenido = datos.carnetRetenido;
         if (datos.docente !== undefined) {
             const idDocente = buscarIdDocente(datos.docente);
             if (!idDocente) throw new Error('Docente no válido para actualizar préstamo.');
@@ -407,8 +466,9 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
     };
     const agregarContenedorActivos = async (datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => {
         const nombre = datos.nombre?.trim();
-        const descripcion = datos.descripcion?.trim();
-        if (!nombre || !descripcion) return;
+        if (!nombre) return;
+
+        const descripcion = datos.descripcion?.trim() ?? '';
 
         await crearContenedorActivoEnBackend({ nombre, descripcion });
         const activosBd = await cargarActivosDesdeBackend();
@@ -568,21 +628,22 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
             prev.map((c) =>
                 c.id === idContenedor
                     ? {
-                          ...c,
-                          herramientas: c.herramientas.map((h) =>
-                              h.id === idHerramienta
-                                  ? { ...h, subinstancias: h.subinstancias.filter((s) => s.id !== idSub) }
-                                  : h,
-                          ),
-                      }
+                        ...c,
+                        herramientas: c.herramientas.map((h) =>
+                            h.id === idHerramienta
+                                ? { ...h, subinstancias: h.subinstancias.filter((s) => s.id !== idSub) }
+                                : h,
+                        ),
+                    }
                     : c,
             ),
         );
     };
     const agregarContenedorMateriales = async (datos: Omit<ContenedorMateriales, 'id' | 'materiales'>) => {
         const nombre = datos.nombre?.trim();
-        const descripcion = datos.descripcion?.trim();
-        if (!nombre || !descripcion) return;
+        if (!nombre) return;
+
+        const descripcion = datos.descripcion?.trim() ?? '';
 
         await crearContenedorMaterialEnBackend({ nombre, descripcion });
         const materialesBd = await cargarMaterialesDesdeBackend();
@@ -753,13 +814,13 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
             prev.map((c) =>
                 c.id === idContenedor
                     ? {
-                          ...c,
-                          materiales: c.materiales.map((m) =>
-                              m.id === idMaterial
-                                  ? { ...m, subinstancias: m.subinstancias.filter((s) => s.id !== idSub) }
-                                  : m,
-                          ),
-                      }
+                        ...c,
+                        materiales: c.materiales.map((m) =>
+                            m.id === idMaterial
+                                ? { ...m, subinstancias: m.subinstancias.filter((s) => s.id !== idSub) }
+                                : m,
+                        ),
+                    }
                     : c,
             ),
         );
@@ -767,16 +828,32 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
 
     return (
         <ContextoInventario.Provider value={{
+            cargando,
             contenedoresHerramientas, contenedoresMateriales,
             contenedoresCompartidos,
             catalogoMaterialesFungibles,
             herramientas, materiales,
             estudiantes, prestamos, docentes,
             materias, carreras,
-            agregarEstudiante, editarEstudiante, eliminarEstudiante, agregarDocente, editarDocente, eliminarDocente, agregarPrestamo, editarPrestamo, extenderPrestamo, devolverPrestamo,
-            agregarMateria, editarMateria, eliminarMateria,
-            agregarCarrera, editarCarrera, eliminarCarrera,
-            agregarHerramienta, registrarEntregaMaterial,
+            agregarEstudiante,
+            editarEstudiante,
+            eliminarEstudiante,
+            actualizarRetencionCue,
+            agregarDocente,
+            editarDocente,
+            eliminarDocente,
+            agregarPrestamo,
+            editarPrestamo,
+            extenderPrestamo,
+            devolverPrestamo,
+            agregarMateria,
+            editarMateria,
+            eliminarMateria,
+            agregarCarrera,
+            editarCarrera,
+            eliminarCarrera,
+            agregarHerramienta,
+            registrarEntregaMaterial,
             recargarDatos: cargarDesdeBackend,
             agregarContenedorCompartido,
             editarContenedorCompartido,

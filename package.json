@@ -3,18 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "electron/main.cjs",
   "scripts": {
-    "dev": "npm run dev:desktop",
-    "dev:web": "vite --host localhost --port 5173 --strictPort",
-    "dev:desktop": "concurrently -k \"npm:dev:web\" \"npm:dev:electron\"",
-    "dev:electron": "wait-on tcp:5173 && electron .",
-    "build": "npm run build:web",
-    "build:web": "tsc -b && vite build",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "npm run dev:desktop",
-    "start:electron": "electron ."
+    "start": "npm run dev"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -60,6 +54,7 @@
     "konva": "^10.2.0",
     "lucide-react": "^0.576.0",
     "next-themes": "^0.4.6",
+    "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-colorful": "^5.6.1",
     "react-country-flag": "^3.1.0",
@@ -82,14 +77,13 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@types/node": "^25.3.3",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^5.1.4",
     "autoprefixer": "^10.4.27",
     "baseline-browser-mapping": "^2.10.0",
-    "concurrently": "^9.2.1",
-    "electron": "^37.3.1",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
@@ -99,7 +93,6 @@
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^7.3.1",
-    "wait-on": "^9.0.1"
+    "vite": "^7.3.1"
   }
 }

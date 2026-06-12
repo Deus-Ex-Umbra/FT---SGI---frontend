@@ -1,168 +1,265 @@
 import { useState, useEffect } from 'react';
-import { InicioSesion } from './paginas/InicioSesion';
-import { RecuperarContrasena } from './paginas/RecuperarContrasena';
-import { Resumen } from './paginas/Resumen';
-import { Activos } from './paginas/Activos';
-import { Prestamos } from './paginas/Prestamos';
-import { Estudiantes } from './paginas/Estudiantes';
-import { Docentes } from './paginas/Docentes';
-import { MaterialFungible } from './paginas/MaterialFungible';
-import { Contenedores } from './paginas/Contenedores';
-import { Configuracion } from './paginas/Configuracion';
-import { Usuarios } from './paginas/Usuarios';
-import { Auditoria } from './paginas/Auditoria';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { InicioSesion, InscripcionMateria, RecuperarContrasena, RegistroEstudianteFirmado, SubirSolicitudFirmada } from './paginas/publicas';
+import { renderizarPaginaPrivada } from './paginas/renderizador-por-rol';
 import { ProveedorInventario } from './contextos/ContextoInventario';
 import { ProveedorConfirmacion } from './contextos/ContextoConfirmacion';
+import { ProveedorDialogoEntrada } from './contextos/ContextoDialogoEntrada';
 import { Toaster } from './componentes/ui/sonner';
 import type { PaginaApp } from '@/tipos/navegacion';
-import { cerrarSesion as cerrarSesionAuth, obtenerUsuarioActual, type RolUsuario, type UsuarioSesion } from './lib/servicio-autenticacion';
+import {
+  EVENTO_USUARIO_ACTUALIZADO,
+  cerrarSesion as cerrarSesionAuth,
+  obtenerUsuarioActual,
+  refrescarUsuarioActual,
+} from './lib/servicio-autenticacion';
+import type { UsuarioSesion } from '@/tipos/autenticacion';
+import {
+  obtenerPaginaInicioPorRol,
+  obtenerPaginasPermitidasPorRol,
+  filtrarPaginasPorInventarioUsuario,
+  PAGINAS_VALIDAS_APP,
+} from './utilidades/navegacion';
 import type { Tema } from '@/tipos/tema';
 
-type EstadoApp = PaginaApp | 'recuperar-contrasena';
-
 const CLAVE_PAGINA_ACTUAL = 'sgi-pagina-actual';
-const PAGINAS_VALIDAS: readonly PaginaApp[] = ['login', 'resumen', 'activos', 'contenedores', 'prestamos', 'estudiantes', 'docentes', 'material', 'auditoria', 'usuarios', 'configuracion'];
-const PAGINAS_ADMINISTRADOR: readonly PaginaApp[] = ['resumen', 'auditoria', 'usuarios', 'estudiantes', 'docentes', 'configuracion'];
-const PAGINAS_ENCARGADO: readonly PaginaApp[] = ['resumen', 'activos', 'contenedores', 'prestamos', 'estudiantes', 'docentes', 'material', 'configuracion'];
+const INTERVALO_REFRESCO_SESION_MS = 15000;
 
-const esPaginaValida = (pagina: string | null): pagina is PaginaApp => {
-  return !!pagina && PAGINAS_VALIDAS.includes(pagina as PaginaApp);
+const sonUsuariosEquivalentes = (a: UsuarioSesion | null, b: UsuarioSesion | null) => {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return (
+    a.id === b.id &&
+    a.correo === b.correo &&
+    a.rol === b.rol &&
+    (a.id_inventario ?? null) === (b.id_inventario ?? null) &&
+    (a.puedeEditarFijos ?? false) === (b.puedeEditarFijos ?? false) &&
+    (a.puedeEditarFungibles ?? false) === (b.puedeEditarFungibles ?? false)
+  );
 };
 
-const paginasPermitidasPorRol = (rol: RolUsuario | undefined): readonly PaginaApp[] => {
-  return rol === 'administrador' ? PAGINAS_ADMINISTRADOR : PAGINAS_ENCARGADO;
-};
-
-const paginaInicioPorRol = (_rol: RolUsuario | undefined): PaginaApp => {
-  // Página principal de la aplicación.
-  // Se mantiene por rol por compatibilidad, pero el inicio ahora es Resumen para todos.
-  return 'resumen';
-};
-
-const obtenerEstadoInicial = (): EstadoApp => {
-  const token = localStorage.getItem('token_acceso');
-  if (!token) return 'login';
-
-  const usuario = obtenerUsuarioActual();
-  const paginasPermitidas = paginasPermitidasPorRol(usuario?.rol);
-
-  const paginaGuardada = localStorage.getItem(CLAVE_PAGINA_ACTUAL);
-  if (esPaginaValida(paginaGuardada) && paginasPermitidas.includes(paginaGuardada)) {
-    return paginaGuardada;
-  }
-
-  localStorage.removeItem(CLAVE_PAGINA_ACTUAL);
-  return paginaInicioPorRol(usuario?.rol);
-};
+const PAGINAS_PRIVADAS = PAGINAS_VALIDAS_APP.filter((p) => p !== 'login');
 
 function App() {
-  const [estado, setEstado] = useState<EstadoApp>(() => obtenerEstadoInicial());
   const [usuarioActual, setUsuarioActual] = useState<UsuarioSesion | null>(() => obtenerUsuarioActual());
-  const [tema, setTema] = useState<Tema>(() => {
-    const guardado = localStorage.getItem('sgi-tema');
-    if (guardado === 'claro' || guardado === 'oscuro' || guardado === 'mixto') return guardado;
-    if (guardado === 'sistema') {
-      const prefiereOscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      return prefiereOscuro ? 'oscuro' : 'claro';
-    }
-    return 'claro';
-  });
+  const tema: Tema = 'mixto';
+
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    const token = localStorage.getItem('token_acceso');
-    const usuario = obtenerUsuarioActual();
-    setUsuarioActual(usuario);
-    const paginasPermitidas = paginasPermitidasPorRol(usuario?.rol);
+    const sincronizarUsuarioConSesion = () => {
+      const usuario = obtenerUsuarioActual();
+      setUsuarioActual((previo: UsuarioSesion | null) => (sonUsuariosEquivalentes(previo, usuario) ? previo : usuario));
+    };
 
-    if (!token && estado !== 'login' && estado !== 'recuperar-contrasena') {
-      setEstado('login');
-      return;
-    }
+    const manejarStorage = (evento: StorageEvent) => {
+      if (!evento.key || evento.key === 'usuario' || evento.key === 'token_acceso') {
+        sincronizarUsuarioConSesion();
+      }
+    };
 
-    if (estado !== 'login' && estado !== 'recuperar-contrasena' && !paginasPermitidas.includes(estado)) {
-      setEstado(paginaInicioPorRol(usuario?.rol));
-      return;
-    }
+    sincronizarUsuarioConSesion();
+    window.addEventListener('storage', manejarStorage);
+    window.addEventListener(EVENTO_USUARIO_ACTUALIZADO, sincronizarUsuarioConSesion);
 
-    if (estado !== 'login' && estado !== 'recuperar-contrasena') {
-      localStorage.setItem(CLAVE_PAGINA_ACTUAL, estado);
-    }
-  }, [estado]);
+    return () => {
+      window.removeEventListener('storage', manejarStorage);
+      window.removeEventListener(EVENTO_USUARIO_ACTUALIZADO, sincronizarUsuarioConSesion);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!usuarioActual) return;
+
+    let cancelado = false;
+
+    const sincronizarPerfil = async () => {
+      try {
+        const usuarioRefrescado = await refrescarUsuarioActual();
+        if (cancelado) return;
+
+        setUsuarioActual((previo: UsuarioSesion | null) =>
+          sonUsuariosEquivalentes(previo, usuarioRefrescado) ? previo : usuarioRefrescado,
+        );
+      } catch {
+      }
+    };
+
+    const manejarFoco = () => {
+      void sincronizarPerfil();
+    };
+
+    const manejarVisibilidad = () => {
+      if (document.visibilityState === 'visible') {
+        void sincronizarPerfil();
+      }
+    };
+
+    const intervalo = window.setInterval(() => {
+      void sincronizarPerfil();
+    }, INTERVALO_REFRESCO_SESION_MS);
+
+    window.addEventListener('focus', manejarFoco);
+    document.addEventListener('visibilitychange', manejarVisibilidad);
+    void sincronizarPerfil();
+
+    return () => {
+      cancelado = true;
+      window.clearInterval(intervalo);
+      window.removeEventListener('focus', manejarFoco);
+      document.removeEventListener('visibilitychange', manejarVisibilidad);
+    };
+  }, [usuarioActual?.id]);
 
   useEffect(() => {
     const raiz = document.documentElement;
-
     raiz.classList.remove(
-      'theme-mixto',
-      'theme-rojo',
-      'theme-naranja',
-      'theme-ambar',
-      'theme-amarillo',
-      'theme-lima',
-      'theme-esmeralda',
-      'theme-cian',
-      'theme-purpura',
-      'theme-violeta',
-      'theme-rosa'
+      'dark', 'theme-rojo', 'theme-naranja', 'theme-ambar', 'theme-amarillo',
+      'theme-lima', 'theme-esmeralda', 'theme-cian', 'theme-purpura', 'theme-violeta', 'theme-rosa'
     );
+    raiz.classList.add('theme-mixto');
+    localStorage.setItem('sgi-tema', 'mixto');
+  }, []);
 
-    if (tema === 'oscuro') {
-      raiz.classList.add('dark');
-    } else if (tema === 'claro') {
-      raiz.classList.remove('dark');
-    } else if (tema === 'mixto') {
-      raiz.classList.remove('dark');
-      raiz.classList.add('theme-mixto');
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tieneSubidaFirmada =
+      !!params.get('subir-solicitud') &&
+      !!params.get('rid') &&
+      !!params.get('exp') &&
+      !!params.get('sig');
+
+    const tieneInscripcionMateria =
+      !!params.get('inscribir-materia') &&
+      !!params.get('eid') &&
+      !!params.get('exp') &&
+      !!params.get('nonce') &&
+      !!params.get('sig');
+
+    const tieneRegistroEstudianteFirmado =
+      params.has('registro-estudiante') &&
+      !!params.get('eid') &&
+      !!params.get('exp') &&
+      !!params.get('nonce') &&
+      !!params.get('sig');
+
+    const tieneInscripcionCodigo = !!params.get('inscribir-materia-codigo');
+
+    if (location.pathname === '/') {
+      if (tieneSubidaFirmada) {
+        navigate(`/subir-solicitud${location.search}`, { replace: true });
+      } else if (tieneInscripcionMateria || tieneInscripcionCodigo) {
+        navigate(`/inscribir-materia${location.search}`, { replace: true });
+      } else if (tieneRegistroEstudianteFirmado) {
+        navigate(`/registro-estudiante${location.search}`, { replace: true });
+      } else {
+        const token = localStorage.getItem('token_acceso');
+        if (token && usuarioActual) {
+          const inicio = obtenerPaginaInicioPorRol(usuarioActual.rol);
+          navigate(`/${inicio}`, { replace: true });
+        } else {
+          navigate('/login', { replace: true });
+        }
+      }
     }
-    localStorage.setItem('sgi-tema', tema);
-  }, [tema]);
+  }, [location, navigate, usuarioActual]);
 
-  if (estado === 'login') {
-    return (
-      <InicioSesion
-        onAcceso={(usuario) => {
-          setUsuarioActual(usuario);
-          setEstado(paginaInicioPorRol(usuario.rol));
-        }}
-        onRecuperar={() => setEstado('recuperar-contrasena')}
-      />
-    );
-  }
-
-  if (estado === 'recuperar-contrasena') {
-    return <RecuperarContrasena onVolver={() => setEstado('login')} />;
-  }
+  const tokenValido = !!localStorage.getItem('token_acceso');
+  const paginasPermitidas = usuarioActual
+    ? filtrarPaginasPorInventarioUsuario(
+        usuarioActual,
+        obtenerPaginasPermitidasPorRol(usuarioActual.rol),
+      )
+    : [];
 
   const propsPagina = {
     onNavegar: (pag: PaginaApp) => {
-      const paginasPermitidas = paginasPermitidasPorRol(usuarioActual?.rol);
-      if (!paginasPermitidas.includes(pag)) return;
-      setEstado(pag);
+      navigate(`/${pag}`);
     },
     onCerrarSesion: () => {
       cerrarSesionAuth();
       localStorage.removeItem(CLAVE_PAGINA_ACTUAL);
       setUsuarioActual(null);
-      setEstado('login');
+      navigate('/login', { replace: true });
     },
   };
 
+  const propsConfiguracion = { ...propsPagina, temaActivo: tema, onCambiarTema: (_t: Tema) => {} };
+
   return (
-    <ProveedorInventario>
-      <ProveedorConfirmacion>
-        {estado === 'prestamos' && <Prestamos        {...propsPagina} />}
-        {estado === 'estudiantes' && <Estudiantes      {...propsPagina} />}
-        {estado === 'docentes' && <Docentes         {...propsPagina} />}
-        {estado === 'material' && <MaterialFungible {...propsPagina} />}
-        {estado === 'contenedores' && <Contenedores {...propsPagina} />}
-        {estado === 'configuracion' && <Configuracion    {...propsPagina} temaActivo={tema} onCambiarTema={setTema} />}
-        {estado === 'usuarios' && <Usuarios {...propsPagina} />}
-        {estado === 'auditoria' && <Auditoria {...propsPagina} />}
-        {estado === 'resumen' && <Resumen {...propsPagina} />}
-        {estado === 'activos' && <Activos {...propsPagina} />}
-        <Toaster position="top-right" richColors />
-      </ProveedorConfirmacion>
-    </ProveedorInventario>
+    <>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            tokenValido && usuarioActual ? (
+              <Navigate to={`/${obtenerPaginaInicioPorRol(usuarioActual.rol)}`} replace />
+            ) : (
+              <InicioSesion
+                onAcceso={(usuario) => {
+                  setUsuarioActual(usuario);
+                  navigate(`/${obtenerPaginaInicioPorRol(usuario.rol)}`, { replace: true });
+                }}
+                onRecuperar={() => navigate('/recuperar-contrasena')}
+              />
+            )
+          }
+        />
+
+        <Route
+          path="/recuperar-contrasena"
+          element={
+            tokenValido && usuarioActual ? (
+              <Navigate to={`/${obtenerPaginaInicioPorRol(usuarioActual.rol)}`} replace />
+            ) : (
+              <RecuperarContrasena onVolver={() => navigate('/login')} />
+            )
+          }
+        />
+        <Route
+          path="/subir-solicitud"
+          element={<SubirSolicitudFirmada onVolver={() => navigate('/login')} />}
+        />
+        <Route
+          path="/inscribir-materia"
+          element={<InscripcionMateria onVolver={() => navigate('/login')} />}
+        />
+        <Route
+          path="/registro-estudiante"
+          element={<RegistroEstudianteFirmado onVolver={() => navigate('/login')} />}
+        />
+        {PAGINAS_PRIVADAS.map((pag) => (
+          <Route
+            key={pag}
+            path={`/${pag}`}
+            element={
+              !tokenValido || !usuarioActual ? (
+                <Navigate to="/login" replace />
+              ) : !paginasPermitidas.includes(pag) ? (
+                <Navigate to={`/${obtenerPaginaInicioPorRol(usuarioActual.rol)}`} replace />
+              ) : (
+                <ProveedorInventario key={location.pathname}>
+                  <ProveedorConfirmacion>
+                    <ProveedorDialogoEntrada>
+                      {renderizarPaginaPrivada({
+                        pagina: pag,
+                        rol: usuarioActual.rol,
+                        propsPagina,
+                        propsConfiguracion,
+                      })}
+                    </ProveedorDialogoEntrada>
+                  </ProveedorConfirmacion>
+                </ProveedorInventario>
+              )
+            }
+          />
+        ))}
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Toaster position="top-right" richColors />
+    </>
   );
 }
 

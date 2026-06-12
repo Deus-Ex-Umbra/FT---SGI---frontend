@@ -1,10 +1,12 @@
 import type { ElementType } from 'react';
+import { Skeleton } from './skeleton';
 
 interface Props {
     titulo: string;
     valor: string | number;
     Icono: ElementType;
     colorBase: 'emerald' | 'blue' | 'amber' | 'red' | 'indigo';
+    cargando?: boolean;
 }
 
 const configColores = {
@@ -40,7 +42,7 @@ const configColores = {
     }
 };
 
-export const TarjetaMetrica = ({ titulo, valor, Icono, colorBase }: Props) => {
+export const TarjetaMetrica = ({ titulo, valor, Icono, colorBase, cargando = false }: Props) => {
     const colores = configColores[colorBase];
 
     return (
@@ -48,10 +50,15 @@ export const TarjetaMetrica = ({ titulo, valor, Icono, colorBase }: Props) => {
             <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${colores.bgIcono}`}>
                 <Icono className={`h-4 w-4 ${colores.textoIcono}`} />
             </div>
-            <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{titulo}</p>
-                <p className={`text-xl font-bold ${colores.textoValor}`}>{valor}</p>
+            <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{titulo}</p>
+                {cargando ? (
+                    <Skeleton className="h-6 w-16 mt-1" />
+                ) : (
+                    <p className={`text-xl font-bold ${colores.textoValor}`}>{valor}</p>
+                )}
             </div>
         </div>
     );
 };
+

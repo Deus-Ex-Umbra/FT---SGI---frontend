@@ -1,4 +1,5 @@
 import { obtenerToken } from './servicio-autenticacion';
+import { API_BASE_URL } from './api';
 import type {
   ActualizarReportePayload,
   CrearReportePayload,
@@ -8,17 +9,6 @@ import type {
   ReportePdfListado,
 } from '@/tipos/reportes';
 
-const API_BASE_URL = 'http://localhost:3001';
-
-export type {
-  ActualizarReportePayload,
-  CrearReportePayload,
-  GenerarPreReporteIAPayload,
-  ReporteDetalle,
-  ReporteListado,
-  ReportePdfListado,
-  TipoReporte,
-} from '@/tipos/reportes';
 
 export const generarPreReporteIA = async (payload: GenerarPreReporteIAPayload) => {
   const token = obtenerToken();

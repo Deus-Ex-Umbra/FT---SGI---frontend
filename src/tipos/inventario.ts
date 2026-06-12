@@ -1,18 +1,16 @@
 export type EstadoHerramienta =
-    // Canónicos
     | 'disponible'
     | 'en_prestamo'
     | 'en_mantenimiento'
     | 'extraviado'
     | 'dado_de_baja'
-    // Legacy
     | 'buen_estado'
     | 'regular'
     | 'revision'
     | 'danado';
 
 export type EstadoFisicoItemActivo = 'bueno' | 'regular' | 'malo';
-export type EstadoPrestamo = 'pendiente' | 'devuelto' | 'vencido' | 'activo' | 'devuelto_fuera_de_fecha_limite';
+export type EstadoPrestamo = 'solicitado' | 'aceptado' | 'rechazado' | 'despachado' | 'vencido' | 'devuelto' | 'devuelto_fuera_de_fecha_limite' | 'pendiente' | 'activo';
 
 export interface SubinstanciaHerramienta {
     id: string;
@@ -38,6 +36,7 @@ export interface Herramienta {
     observaciones?: string;
     precio?: number;
     subinstancias: SubinstanciaHerramienta[];
+    idInventario?: number | null;
 }
 
 export interface ContenedorHerramientas {
@@ -66,41 +65,82 @@ export interface ItemActivoResumen {
     precio?: number;
     contenedorId?: string;
     contenedorNombre?: string;
+    idInventario?: number | null;
+}
+
+export interface EstudianteCarreraNormalizada {
+    carreraId?: string;
+    carrera: string;
+    cu: string;
+    prefijoCu?: string | null;
 }
 
 export interface Estudiante {
     id?: string;
     carnet: string;
+    cu?: string;
     nombre: string;
     apellido: string;
     carrera: string;
-    semestre: number;
+    cus?: string[];
+    carreras?: string[];
+    asignacionesCarrera?: EstudianteCarreraNormalizada[];
     carnetRetenido?: boolean;
-    // null/undefined => automático (según préstamos activos)
-    // true/false => override manual persistente
     carnetRetenidoOverride?: boolean | null;
     carreraId?: string;
+    correo?: string;
+    fechaNacimiento?: string | null;
+    estadoAprobacion?: 'pendiente' | 'aprobado' | 'rechazado';
 }
 
 export interface Carrera {
     id: string;
     nombre: string;
+    prefijoCu: string;
+    inventariosIds?: number[];
+    inventarios?: Array<{
+        id: number;
+        nombre: string;
+    }>;
+}
+
+export interface CarreraHabilitadaMateria {
+    id: string;
+    nombre: string;
+    prefijoCu?: string | null;
+}
+
+export interface DocenteAsignadoMateria {
+    id: string;
+    codigo: string;
+    nombre: string;
+    apellido: string;
+    correo: string;
 }
 
 export interface Materia {
     id: string;
     codigo: string;
     nombre?: string | null;
+    descripcion?: string | null;
+    carrerasIds?: string[];
+    carrerasHabilitadas?: CarreraHabilitadaMateria[];
+    docentesIds?: string[];
+    docentesAsignados?: DocenteAsignadoMateria[];
 }
 
 export interface Docente {
     id: string;
+    correo: string;
     codigo: string;
     nombre: string;
     apellido: string;
     materia: string;
     carnet: string;
     materias?: Materia[];
+    fechaNacimiento?: string | null;
+    carreras?: Carrera[];
+    carrerasIds?: number[];
 }
 
 export interface Prestamo {
@@ -108,47 +148,64 @@ export interface Prestamo {
     carnetEstudiante: string;
     idHerramienta: string;
     grupoCanasta?: string | null;
+    codigo?: string | null;
     fechaPrestamo: string;
     fechaDevolucion: string | null;
     estado: EstadoPrestamo;
     docente: string;
     observaciones: string;
+    idDocente?: number;
+    motivoRechazo?: string | null;
+    estadoFisicoEntrega?: string;
+    estadoFisicoDevolucion?: string | null;
+    carnetRetenido?: boolean;
 }
 
 export interface PrestamoCanastaRegistro {
     id: string;
-    grupoCanasta: string | null;
-    idsPrestamo: string[];
+    grupoCanasta?: string | null;
+    codigo?: string | null;
+    idsPrestamo: Array<string | number>;
     carnetEstudiante: string;
-    carnetsEstudiantes: string[];
-    estudiantes: Array<{
-        id?: string;
+    carnetsEstudiantes?: string[];
+    estudiantes?: Array<{
+        id?: string | number;
         carnet: string;
         nombre: string;
         apellido: string;
+        carrera?: string | null;
+        cu?: string | null;
+        carnetRetenido?: boolean;
     }>;
-    idDocente?: string;
+    idDocente?: string | number;
     docente: string;
     fechaPrestamo: string;
-    fechaDevolucion: string | null;
+    fechaDevolucion?: string | null;
     estado: EstadoPrestamo;
-    observaciones: string;
-    totalActivos: number;
-    totalConsumibles: number;
+    observaciones?: string;
+    totalActivos?: number;
+    totalConsumibles?: number;
     totalCosas: number;
-    cosas: Array<{
+    cosas?: Array<{
         idHerramienta: string;
         codigoInventario: string;
         nombre: string;
+        registrado: boolean;
+        estadoFisicoEntrega?: string;
+        estadoFisicoDevolucion?: string | null;
     }>;
-    consumibles: Array<{
+    consumibles?: Array<{
         idLote: string;
         lote: string;
         material: string;
-        cantidad: number;
+        cantidadSolicitada: number;
+        cantidadDespachada?: number;
+        cantidadDevuelta?: number;
         motivo: string;
-        fecha: string;
+        estadoDevuelto?: string;
+        fecha?: string;
     }>;
+    motivoRechazo?: string | null;
 }
 
 export interface SubinstanciaMaterial {
@@ -175,6 +232,9 @@ export interface MaterialFungible {
     cantidadDisponible?: number;
     precio?: number;
     subinstancias: SubinstanciaMaterial[];
+    idInventario?: number | null;
+    lote?: string | null;
+    serie?: string | null;
 }
 
 export interface ContenedorMateriales {
@@ -200,6 +260,12 @@ export interface ItemCanastaConsumible {
     motivo: string;
 }
 
+export interface EquipoCanastaSeleccionado {
+    idHerramienta: string;
+    registrado: boolean;
+    bloqueado?: boolean;
+}
+
 export interface CanastaPrestamo {
     carnetEstudiante?: string;
     carnetsEstudiantes: string[];
@@ -207,7 +273,7 @@ export interface CanastaPrestamo {
     fechaPrestamo: string;
     fechaDevolucion: string;
     observaciones?: string;
-    equipos: string[];
+    equipos: EquipoCanastaSeleccionado[];
     consumibles: ItemCanastaConsumible[];
 }
 

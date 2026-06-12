@@ -28,8 +28,8 @@ import {
   Underline as UnderlineIcon,
 } from 'lucide-react';
 
-import { FontSize } from '@/lib/tiptap-font-size';
-import { cn } from '@/lib/utils';
+import { FontSize } from '@/utilidades/editor';
+import { cn } from '@/utilidades/ui';
 import { Boton } from '@/componentes/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/componentes/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/componentes/ui/popover';
@@ -62,7 +62,6 @@ const clampNumber = (value: number, min: number, max: number) => Math.min(max, M
 
 const MARGEN_MIN_MM = 0;
 const MARGEN_MAX_MM = 50;
-// Asegura que quede un área utilizable mínima de contenido.
 const MIN_CONTENIDO_MM = 40;
 
 const CustomListItem = BaseListItem.extend({
@@ -580,9 +579,6 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
                   if (soloLectura) return;
                   if (!next) return;
                   const value = next as 'left' | 'center' | 'right';
-
-                  // Cuando estamos dentro de una lista, además de alinear párrafos,
-                  // aseguramos que el nodo ul/ol tenga textAlign para alinear el marcador.
                   if (editor.isActive('bulletList')) {
                     editor.chain().focus().updateAttributes('bulletList', { textAlign: value }).setTextAlign(value).run();
                     return;
@@ -1010,7 +1006,6 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
           line-height: 1.3;
         }
 
-        /* Listas: base */
         .editor-documento-prosemirror .ProseMirror ul,
         .editor-documento-prosemirror .ProseMirror ol {
           padding-left: 1.5rem;
@@ -1037,8 +1032,6 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
           color: currentColor;
         }
 
-        /* Alineación de listas (igual que el componente de referencia):
-           se alinea el bloque de la lista (no el marker suelto). */
         .editor-documento-prosemirror .ProseMirror ul[style*="text-align: center"],
         .editor-documento-prosemirror .ProseMirror ol[style*="text-align: center"],
         .editor-documento-prosemirror .ProseMirror ul[style*="text-align:center"],
@@ -1079,3 +1072,4 @@ export function EditorDocumento({ valorHtml, onChangeHtml, config, onChangeConfi
     </div>
   );
 }
+

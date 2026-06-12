@@ -3,7 +3,7 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Calendar as CalendarIcon, ChevronDown, Clock } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/utilidades/ui"
 import { Boton } from "@/componentes/ui/button"
 import { Calendar } from "@/componentes/ui/calendar"
 import { Input } from "@/componentes/ui/input"
@@ -18,6 +18,8 @@ interface DateTimePickerProps {
   dateButtonClassName?: string
   align?: "start" | "center" | "end"
   disableDate?: boolean
+  startMonth?: Date
+  endMonth?: Date
 }
 
 const toDate = (value: string): Date | undefined => {
@@ -62,6 +64,8 @@ export function DateTimePicker({
   dateButtonClassName,
   align = "start",
   disableDate = false,
+  startMonth = new Date(2000, 0),
+  endMonth = new Date(2100, 11),
 }: DateTimePickerProps) {
   const [open, setOpen] = React.useState(false)
   const selectedDate = React.useMemo(() => toDate(value), [value])
@@ -85,7 +89,7 @@ export function DateTimePicker({
   }, [open, currentMonth])
 
   return (
-    <div className={cn("flex gap-2", className)}>
+    <div className={cn("flex items-center gap-2", className)}>
       <Popover open={disableDate ? false : open} onOpenChange={(nextOpen) => {
         if (disableDate) return
         setOpen(nextOpen)
@@ -96,20 +100,20 @@ export function DateTimePicker({
             title={title}
             disabled={disableDate}
             className={cn(
-              "flex-1 justify-between text-left font-normal transition-all duration-200 hover:border-blue-400",
-              !selectedDate && "text-slate-500 dark:text-slate-400",
+              "h-9 flex-1 justify-between text-left font-normal transition-all duration-150 hover:border-blue-400",
+              !selectedDate && "text-slate-400 dark:text-slate-500",
               dateButtonClassName,
             )}
           >
             <div className="flex items-center gap-2">
-              <CalendarIcon className="h-4 w-4" />
+              <CalendarIcon className={cn("h-4 w-4 transition-colors", selectedDate ? "text-primary" : "text-slate-400")} />
               {selectedDate ? format(selectedDate, "PPP", { locale: es }) : <span>{placeholder}</span>}
             </div>
-            <ChevronDown className="h-4 w-4 opacity-50" />
+            <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform duration-200", open && "rotate-180")} />
           </Boton>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto overflow-hidden rounded-md border border-slate-200 bg-white p-0 text-[11px] text-slate-900 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+          className="w-auto overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-lg animate-in fade-in-0 zoom-in-95 duration-150 dark:border-slate-700 dark:bg-slate-900"
           align={align}
         >
           <Calendar
@@ -126,18 +130,17 @@ export function DateTimePicker({
             locale={es}
             captionLayout="dropdown"
             navLayout="around"
-            startMonth={new Date(2000, 0)}
-            endMonth={new Date(2100, 11)}
+            startMonth={startMonth}
+            endMonth={endMonth}
             month={visibleMonth}
             onMonthChange={setVisibleMonth}
-            className="p-0.5"
+            className="p-2"
           />
         </PopoverContent>
       </Popover>
-
-      <div className="shrink-0">
-        <div className="relative w-[88px]">
-          <Clock className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
+      <div className="flex shrink-0 flex-col items-start gap-0.5">
+        <div className="relative w-[100px]">
+          <Clock className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <Input
             title={title ? `${title} - hora` : "Hora"}
             aria-label={title ? `${title} - hora` : "Hora"}
@@ -161,7 +164,7 @@ export function DateTimePicker({
                 onChange(mergeDateAndTime(selectedDate, normalizeTimeFromInput(time)))
               }
             }}
-            className="h-9 w-full appearance-none bg-background pl-2 pr-7 text-sm font-medium tabular-nums [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+            className="h-9 w-full appearance-none bg-background pl-8 pr-2 text-sm font-medium tabular-nums [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
           />
         </div>
       </div>

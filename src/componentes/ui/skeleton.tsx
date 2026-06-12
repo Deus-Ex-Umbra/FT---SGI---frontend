@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils"
+import { cn } from "@/utilidades/ui"
 
 function Skeleton({
   className,
@@ -13,3 +13,4 @@ function Skeleton({
 }
 
 export { Skeleton }
+

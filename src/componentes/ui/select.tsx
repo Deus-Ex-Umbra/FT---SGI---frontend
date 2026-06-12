@@ -2,7 +2,7 @@ import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/utilidades/ui"
 
 const Select = SelectPrimitive.Root
 const SelectGroup = SelectPrimitive.Group
@@ -76,7 +76,7 @@ const SelectContent = React.forwardRef<
         className={cn(
           "calendar-select-viewport max-h-36 overflow-y-auto p-0.5",
           position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
+            "w-full min-w-[var(--radix-select-trigger-width)]"
         )}
       >
         {children}
@@ -145,3 +145,4 @@ export {
   SelectTrigger,
   SelectValue,
 }
+

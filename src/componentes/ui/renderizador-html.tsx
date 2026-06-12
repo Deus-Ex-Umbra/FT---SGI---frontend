@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utilidades/ui';
 
 interface RenderizadorHtmlProps {
   contenido: string;
@@ -71,11 +71,7 @@ export function RenderizadorHtml({
     const disponible = Math.max(1, anchoContenedor - padding);
     return Math.min(1, disponible / page.widthPx);
   }, [ajustarAncho, anchoContenedor, page.widthPx]);
-
   const calcularSaltosDePagina = useCallback((container: HTMLDivElement, alturaDisponible: number): number[] => {
-    // La paginación NO debe solapar páginas (eso causa repetición). El truco para evitar cortes
-    // en listas/encabezados es insertar espaciadores invisibles que empujan el bloque a la
-    // siguiente página cuando no cabe.
     const paso = Math.max(1, alturaDisponible);
     const totalHeight = container.scrollHeight;
     const numPages = Math.max(1, Math.ceil(totalHeight / paso));
@@ -91,14 +87,9 @@ export function RenderizadorHtml({
   useEffect(() => {
     if (!measurerRef.current) return;
     const el = measurerRef.current;
-    // Esperar layout.
     const t = window.setTimeout(() => {
       const alturaEfectiva = Math.max(1, page.contentHeightPx - BUFFER_CORTE_PX);
-
-      // 1) Limpiar espaciadores anteriores.
       el.querySelectorAll('[data-page-spacer="1"]').forEach((n) => n.remove());
-
-      // 2) Insertar espaciadores para evitar cortes en listas/encabezados.
       let iter = 0;
       while (iter < MAX_ITERACIONES_ESPACIADORES) {
         let changed = false;
@@ -124,7 +115,7 @@ export function RenderizadorHtml({
               spacer.style.height = `${Math.ceil(spacerHeight)}px`;
               (node.parentElement ?? el).insertBefore(spacer, node);
               changed = true;
-              break; // Recalcular layout.
+              break;
             }
           }
         }
@@ -139,7 +130,7 @@ export function RenderizadorHtml({
         return;
       }
 
-      // 3) Con el contenido ya paginado (sin solape), los saltos son múltiplos del alto efectivo.
+  
       const next = calcularSaltosDePagina(el, alturaEfectiva);
       setBreaks(next);
     }, 60);
@@ -159,7 +150,6 @@ export function RenderizadorHtml({
   return (
     <div className={cn('w-full overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900', className)} style={{ height: altura }}>
       <div ref={scrollRef} className="h-full w-full overflow-auto bg-slate-100/60 p-4 dark:bg-slate-950/20">
-        {/* Measurer */}
         <div
           ref={measurerRef}
           className="renderizador-html-documento"
@@ -321,3 +311,4 @@ export function RenderizadorHtml({
     </div>
   );
 }
+
