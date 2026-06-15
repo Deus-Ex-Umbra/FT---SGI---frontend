@@ -55,3 +55,37 @@ export const formatearFechaHora = (valor?: string | null): string => {
         hour12: false,
     }).format(fecha);
 };
+
+export const localToApiDateTime = (valor?: string | null): string => {
+    if (!valor) return '';
+    const txt = String(valor).trim();
+    if (!txt) return '';
+
+    if (txt.endsWith('Z') || /[-+]\d{2}:\d{2}$/.test(txt)) {
+        return txt;
+    }
+
+    const partes = txt.split('T');
+    const fechaParte = partes[0];
+    const horaParte = partes[1] || '00:00';
+
+    const [anio, mes, dia] = fechaParte.split('-').map(Number);
+    const [horas, minutos] = horaParte.split(':').map(Number);
+
+    if (
+        !Number.isNaN(anio) && !Number.isNaN(mes) && !Number.isNaN(dia) &&
+        !Number.isNaN(horas) && !Number.isNaN(minutos)
+    ) {
+        const fecha = new Date(anio, mes - 1, dia, horas, minutos);
+        if (!Number.isNaN(fecha.getTime())) {
+            return fecha.toISOString();
+        }
+    }
+
+    const fecha = new Date(txt);
+    if (!Number.isNaN(fecha.getTime())) {
+        return fecha.toISOString();
+    }
+    return txt;
+};
+

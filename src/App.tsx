@@ -21,6 +21,10 @@ import {
   PAGINAS_VALIDAS_APP,
 } from './utilidades/navegacion';
 import type { Tema } from '@/tipos/tema';
+import { DialogoPrestamosVencidos } from './componentes/paginas/compartido/DialogoPrestamosVencidos';
+import { cargarCanastasPrestamoDesdeBackend } from './lib/servicio-prestamos';
+import type { PrestamoCanastaRegistro } from '@/tipos/inventario';
+
 
 const CLAVE_PAGINA_ACTUAL = 'sgi-pagina-actual';
 const INTERVALO_REFRESCO_SESION_MS = 15000;
@@ -42,6 +46,8 @@ const PAGINAS_PRIVADAS = PAGINAS_VALIDAS_APP.filter((p) => p !== 'login');
 
 function App() {
   const [usuarioActual, setUsuarioActual] = useState<UsuarioSesion | null>(() => obtenerUsuarioActual());
+  const [prestamosVencidos, setPrestamosVencidos] = useState<PrestamoCanastaRegistro[]>([]);
+  const [mostrarDialogoVencidos, setMostrarDialogoVencidos] = useState(false);
   const tema: Tema = 'mixto';
 
   const navigate = useNavigate();
@@ -113,6 +119,40 @@ function App() {
   }, [usuarioActual?.id]);
 
   useEffect(() => {
+    if (!usuarioActual) {
+      setPrestamosVencidos([]);
+      setMostrarDialogoVencidos(false);
+      return;
+    }
+
+    if (usuarioActual.rol !== 'estudiante' && usuarioActual.rol !== 'docente') {
+      return;
+    }
+
+    const yaMostrado = sessionStorage.getItem('sgi:dialogo-vencidos-mostrado');
+    if (yaMostrado === 'true') {
+      return;
+    }
+
+    const verificarPrestamosVencidos = async () => {
+      try {
+        const canastas = await cargarCanastasPrestamoDesdeBackend();
+        const vencidos = canastas.filter((c) => c.estado === 'vencido');
+        if (vencidos.length > 0) {
+          setPrestamosVencidos(vencidos);
+          setMostrarDialogoVencidos(true);
+          sessionStorage.setItem('sgi:dialogo-vencidos-mostrado', 'true');
+        }
+      } catch (error) {
+        console.error('Error al verificar préstamos vencidos:', error);
+      }
+    };
+
+    void verificarPrestamosVencidos();
+  }, [usuarioActual]);
+
+
+  useEffect(() => {
     const raiz = document.documentElement;
     raiz.classList.remove(
       'dark', 'theme-rojo', 'theme-naranja', 'theme-ambar', 'theme-amarillo',
@@ -180,6 +220,7 @@ function App() {
     onCerrarSesion: () => {
       cerrarSesionAuth();
       localStorage.removeItem(CLAVE_PAGINA_ACTUAL);
+      sessionStorage.removeItem('sgi:dialogo-vencidos-mostrado');
       setUsuarioActual(null);
       navigate('/login', { replace: true });
     },
@@ -259,6 +300,15 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster position="top-right" richColors />
+      <DialogoPrestamosVencidos
+        abierto={mostrarDialogoVencidos}
+        onClose={() => setMostrarDialogoVencidos(false)}
+        prestamos={prestamosVencidos}
+        onIrAPrestamos={() => {
+          setMostrarDialogoVencidos(false);
+          navigate('/prestamos');
+        }}
+      />
     </>
   );
 }

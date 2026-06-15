@@ -62,6 +62,7 @@ import {
     editarCarreraEnBackend,
     eliminarCarreraEnBackend,
 } from '@/lib/servicio-catalogo';
+import { localToApiDateTime } from '@/utilidades/fechas';
 
 interface ContextoInventarioTipo {
     cargando: boolean;
@@ -326,12 +327,7 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
     };
 
     const toApiDateTime = (valor?: string | null): string | null => {
-        if (!valor) return null;
-        const limpio = valor.trim();
-        if (!limpio) return null;
-        if (limpio.includes('T')) return `${limpio.replace('T', ' ')}:00`;
-        if (limpio.length === 10) return `${limpio} 00:00:00`;
-        return limpio;
+        return localToApiDateTime(valor) || null;
     };
 
     const buscarIdDocente = (nombreCompleto: string): number | null => {

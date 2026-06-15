@@ -686,6 +686,11 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
             return;
         }
 
+        if (campos.fechaDevolucion && new Date(campos.fechaDevolucion).getTime() <= new Date(campos.fechaPrestamo).getTime()) {
+            setError('La fecha/hora de devolución debe ser posterior al préstamo.');
+            return;
+        }
+
         try {
             setGuardando(true);
             const payloadItems = campos.equipos.map((equipo) => ({
@@ -1155,11 +1160,37 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="flex flex-col gap-1">
                         <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Fecha/hora prestamo</Label>
-                        <DateTimePicker title="Fecha prestamo" value={campos.fechaPrestamo} onChange={(value) => setCampos((p) => ({ ...p, fechaPrestamo: value }))} className="w-full" dateButtonClassName="w-full" />
+                        <DateTimePicker
+                            title="Fecha prestamo"
+                            value={campos.fechaPrestamo}
+                            onChange={(value) => {
+                                setError('');
+                                setCampos((p) => {
+                                    const nextCampos = { ...p, fechaPrestamo: value };
+                                    if (!esEdicion) {
+                                        if (!nextCampos.fechaDevolucion || new Date(nextCampos.fechaDevolucion).getTime() <= new Date(value).getTime()) {
+                                            nextCampos.fechaDevolucion = sumarHorasInputLocal(value, 2);
+                                        }
+                                    }
+                                    return nextCampos;
+                                });
+                            }}
+                            className="w-full"
+                            dateButtonClassName="w-full"
+                        />
                     </div>
                     <div className="flex flex-col gap-1">
                         <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Fecha/hora devolucion</Label>
-                        <DateTimePicker title="Fecha devolucion" value={campos.fechaDevolucion} onChange={(value) => setCampos((p) => ({ ...p, fechaDevolucion: value }))} className="w-full" dateButtonClassName="w-full" />
+                        <DateTimePicker
+                            title="Fecha devolucion"
+                            value={campos.fechaDevolucion}
+                            onChange={(value) => {
+                                setError('');
+                                setCampos((p) => ({ ...p, fechaDevolucion: value }));
+                            }}
+                            className="w-full"
+                            dateButtonClassName="w-full"
+                        />
                     </div>
                 </div>
 

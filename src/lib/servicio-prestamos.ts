@@ -8,6 +8,7 @@ import type {
     RegistroHistorialPrestamoApi
 } from '@/tipos/api';
 import type { Prestamo, EstadoPrestamo, PrestamoCanastaRegistro } from '@/tipos/inventario';
+import { localToApiDateTime } from '@/utilidades/fechas';
 
 const API_BASE = API_BASE_URL;
 
@@ -92,10 +93,15 @@ export const cargarCanastasPrestamoDesdeBackend = async (): Promise<PrestamoCana
 };
 
 export const crearPrestamoEnBackend = async (payload: CrearPrestamoApi): Promise<Prestamo> => {
+    const body = {
+        ...payload,
+        fechaPrestamo: localToApiDateTime(payload.fechaPrestamo) || '',
+        fechaDevolucion: localToApiDateTime(payload.fechaDevolucion) || '',
+    };
     const resp = await fetch(`${API_BASE}/prestamos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
     });
 
     if (!resp.ok) {
@@ -128,10 +134,15 @@ export const editarPrestamoEnBackend = async (id: string, payload: Partial<{
     estado: EstadoPrestamo;
     carnetRetenido?: boolean;
 }>): Promise<Prestamo> => {
+    const body = { ...payload };
+    if (body.fechaPrestamo !== undefined) body.fechaPrestamo = localToApiDateTime(body.fechaPrestamo);
+    if (body.fechaDevolucion !== undefined && body.fechaDevolucion !== null) {
+        body.fechaDevolucion = localToApiDateTime(body.fechaDevolucion);
+    }
     const resp = await fetch(`${API_BASE}/prestamos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
     });
 
     if (!resp.ok) {
@@ -158,7 +169,7 @@ export const extenderPrestamoEnBackend = async (id: string, fechaDevolucion: str
     const resp = await fetch(`${API_BASE}/prestamos/${id}/extender`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ fechaDevolucion }),
+        body: JSON.stringify({ fechaDevolucion: localToApiDateTime(fechaDevolucion) }),
     });
 
     if (!resp.ok) {
@@ -285,10 +296,15 @@ export const crearCanastaPrestamoEnBackend = async (payload: {
     idInventario?: number;
     carnetsRetenidos?: string[];
 }): Promise<void> => {
+    const body = {
+        ...payload,
+        fechaPrestamo: localToApiDateTime(payload.fechaPrestamo) || '',
+        fechaDevolucion: localToApiDateTime(payload.fechaDevolucion) || '',
+    };
     const resp = await fetch(`${API_BASE}/prestamos/canastas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
     });
 
     if (!resp.ok) {
@@ -298,10 +314,15 @@ export const crearCanastaPrestamoEnBackend = async (payload: {
 };
 
 export const editarCanastaPrestamoEnBackend = async (id: string, payload: any): Promise<any> => {
+    const body = { ...payload };
+    if (body.fechaPrestamo !== undefined) body.fechaPrestamo = localToApiDateTime(body.fechaPrestamo);
+    if (body.fechaDevolucion !== undefined && body.fechaDevolucion !== null) {
+        body.fechaDevolucion = localToApiDateTime(body.fechaDevolucion);
+    }
     const resp = await fetch(`${API_BASE}/prestamos/canastas/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
     });
 
     if (!resp.ok) {
@@ -315,7 +336,7 @@ export const extenderCanastaPrestamoEnBackend = async (id: string, fechaDevoluci
     const resp = await fetch(`${API_BASE}/prestamos/canastas/${id}/extender`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ fechaDevolucion }),
+        body: JSON.stringify({ fechaDevolucion: localToApiDateTime(fechaDevolucion) }),
     });
 
     if (!resp.ok) {
