@@ -2,6 +2,9 @@ import type { ComponentType } from 'react';
 import type { RolUsuario } from '@/tipos/autenticacion';
 import type { PaginaApp } from '@/tipos/navegacion';
 import type { PropsPaginaBase, PropsPaginaConfiguracion } from '@/tipos/paginas';
+import { useResponsive } from '@/hooks/use-responsive';
+import { ResumenMovil } from '../paginas-movil/compartidas/Resumen-movil';
+import { ResumenEstudianteMovil } from '../paginas-movil/estudiante/Resumen-movil';
 
 
 import {
@@ -126,6 +129,15 @@ export const renderizarPaginaPrivada = ({
     propsConfiguracion,
 }: RenderizadorPaginaPrivadaProps) => {
     if (!rol) return null;
+
+    const { es_movil } = useResponsive();
+
+    if (es_movil && pagina === 'resumen') {
+        if (rol === 'estudiante') {
+            return <ResumenEstudianteMovil {...propsPagina} />;
+        }
+        return <ResumenMovil {...propsPagina} />;
+    }
 
     if (pagina === 'configuracion') {
         const ComponenteConfiguracion = PAGINAS_CONFIGURACION_POR_ROL[rol];

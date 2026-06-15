@@ -1,17 +1,17 @@
 import { LayoutPagina } from '@/componentes/layout/layout-pagina';
 import { Boton } from '@/componentes/ui/button';
 import type { PropsPaginaBase } from '@/tipos/paginas';
-import { 
-    AlertOctagon, 
-    ArrowRight, 
-    BookMarked, 
-    Calendar, 
-    GraduationCap, 
-    IdCard, 
-    Landmark, 
-    UserRound, 
-    BadgeCheck, 
-    CircleAlert 
+import {
+    AlertOctagon,
+    ArrowRight,
+    BookMarked,
+    Calendar,
+    GraduationCap,
+    IdCard,
+    Landmark,
+    UserRound,
+    BadgeCheck,
+    CircleAlert
 } from 'lucide-react';
 import { useDashboardEstudiante } from './use-dashboard-estudiante';
 
@@ -162,13 +162,13 @@ export const Resumen = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                 </div>
                             </div>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 leading-normal">
-                                {materias.length === 0 
-                                    ? 'No estás inscrito en ninguna materia en este periodo.' 
+                                {materias.length === 0
+                                    ? 'No estás inscrito en ninguna materia en este periodo.'
                                     : `Inscrito en ${materias.length} ${materias.length === 1 ? 'materia activa' : 'materias activas'}.`}
                             </p>
-                            <Boton 
-                                type="button" 
-                                variant="outline" 
+                            <Boton
+                                type="button"
+                                variant="outline"
                                 className="mt-4 w-full text-xs font-semibold justify-between h-9 rounded-lg border-slate-200 dark:border-slate-800"
                                 onClick={() => onNavegar('mis-materias')}
                             >
@@ -194,15 +194,15 @@ export const Resumen = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                     </div>
                                 ) : (
                                     <p className="text-slate-500 dark:text-slate-400 leading-normal">
-                                        {prestamosActivos.length === 0 
-                                            ? 'No tienes préstamos pendientes de devolución.' 
+                                        {prestamosActivos.length === 0
+                                            ? 'No tienes préstamos pendientes de devolución.'
                                             : 'Tienes préstamos vigentes dentro de la fecha límite.'}
                                     </p>
                                 )}
                             </div>
-                            <Boton 
-                                type="button" 
-                                variant="outline" 
+                            <Boton
+                                type="button"
+                                variant="outline"
                                 className="mt-4 w-full text-xs font-semibold justify-between h-9 rounded-lg border-slate-200 dark:border-slate-800"
                                 onClick={() => onNavegar('prestamos')}
                             >
