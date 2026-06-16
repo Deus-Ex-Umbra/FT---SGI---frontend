@@ -168,24 +168,7 @@ export const Resumen = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                     </div>
 
                     <div className="grid gap-6 lg:grid-cols-2">
-                        <div className="space-y-6">
-                            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Prioridades del administrador</h3>
-                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                    Inicio muestra solo resumen del sistema. La gestión se realiza desde cada módulo en el menú lateral.
-                                </p>
-                                <div className="mt-4 grid grid-cols-1 gap-2 text-xs text-slate-600 dark:text-slate-300">
-                                    <div className="rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">1. Carreras, Estudiantes y Docentes</div>
-                                    <div className="rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">2. Usuarios</div>
-                                    <div className="rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">3. Inscripción de nuevos estudiantes</div>
-                                    <div className="rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">
-                                        El registro se administra desde este resumen y la ejecución se realiza en Estudiantes.
-                                    </div>
-                                </div>
-                            </div>
-                            <PanelRegistroDocente />
-                        </div>
-
+                        <PanelRegistroDocente />
                         <PanelRegistroEstudiante />
                     </div>
                 </div>
