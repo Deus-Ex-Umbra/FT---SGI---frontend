@@ -457,3 +457,12 @@ export const cargarKardexMaterialEnBackend = async (idMaterial: string): Promise
     }
     return await resp.json();
 };
+export const cargarContenedoresPorInventarioEnBackend = async (idInventario: number): Promise<Array<{ id: number; nombre: string; ubicacion: string }>> => {
+    const resp = await fetch(`${API_BASE}/activos/contenedores/inventario/${idInventario}`, {
+        headers: authHeaders(),
+    });
+    if (!resp.ok) {
+        throw new Error('No se pudieron cargar los contenedores del inventario');
+    }
+    return await resp.json();
+};

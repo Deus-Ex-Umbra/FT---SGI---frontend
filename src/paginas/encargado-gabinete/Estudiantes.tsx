@@ -192,6 +192,8 @@ export const Estudiantes = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
             subtitulo={cargando ? 'Cargando...' : 'Administración de estudiantes y solicitudes de registro'}
             onNavegar={onNavegar}
             onCerrarSesion={onCerrarSesion}
+            onRecargar={() => { void recargarDatos(); void cargarSolicitudes(); }}
+            recargando={cargando || cargandoSolicitudes}
         >
             <Tabs value={pestanaActiva} onValueChange={setPestanaActiva} className="space-y-4">
                 <TabsList className="flex gap-1.5 p-1 rounded-xl bg-slate-100/65 dark:bg-slate-800/40 justify-start h-auto w-fit">

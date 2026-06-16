@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { InicioSesion, InscripcionMateria, RecuperarContrasena, RegistroEstudianteFirmado, SubirSolicitudFirmada } from './paginas/publicas';
+import { InicioSesion, InscripcionMateria, RecuperarContrasena, RegistroEstudianteFirmado, RegistroDocenteFirmado, SubirSolicitudFirmada } from './paginas/publicas';
 import { renderizarPaginaPrivada } from './paginas/renderizador-por-rol';
 import { ProveedorInventario } from './contextos/ContextoInventario';
 import { ProveedorConfirmacion } from './contextos/ContextoConfirmacion';
@@ -46,6 +46,7 @@ const PAGINAS_PRIVADAS = PAGINAS_VALIDAS_APP.filter((p) => p !== 'login');
 
 function App() {
   const [usuarioActual, setUsuarioActual] = useState<UsuarioSesion | null>(() => obtenerUsuarioActual());
+  const [tokenValido, setTokenValido] = useState<boolean>(() => !!localStorage.getItem('token_acceso'));
   const [prestamosVencidos, setPrestamosVencidos] = useState<PrestamoCanastaRegistro[]>([]);
   const [mostrarDialogoVencidos, setMostrarDialogoVencidos] = useState(false);
   const tema: Tema = 'mixto';
@@ -57,6 +58,7 @@ function App() {
     const sincronizarUsuarioConSesion = () => {
       const usuario = obtenerUsuarioActual();
       setUsuarioActual((previo: UsuarioSesion | null) => (sonUsuariosEquivalentes(previo, usuario) ? previo : usuario));
+      setTokenValido(!!localStorage.getItem('token_acceso'));
     };
 
     const manejarStorage = (evento: StorageEvent) => {
@@ -184,6 +186,13 @@ function App() {
       !!params.get('nonce') &&
       !!params.get('sig');
 
+    const tieneRegistroDocenteFirmado =
+      params.has('registro-docente') &&
+      !!params.get('eid') &&
+      !!params.get('exp') &&
+      !!params.get('nonce') &&
+      !!params.get('sig');
+
     const tieneInscripcionCodigo = !!params.get('inscribir-materia-codigo');
 
     if (location.pathname === '/') {
@@ -193,6 +202,8 @@ function App() {
         navigate(`/inscribir-materia${location.search}`, { replace: true });
       } else if (tieneRegistroEstudianteFirmado) {
         navigate(`/registro-estudiante${location.search}`, { replace: true });
+      } else if (tieneRegistroDocenteFirmado) {
+        navigate(`/registro-docente${location.search}`, { replace: true });
       } else {
         const token = localStorage.getItem('token_acceso');
         if (token && usuarioActual) {
@@ -205,7 +216,6 @@ function App() {
     }
   }, [location, navigate, usuarioActual]);
 
-  const tokenValido = !!localStorage.getItem('token_acceso');
   const paginasPermitidas = usuarioActual
     ? filtrarPaginasPorInventarioUsuario(
         usuarioActual,
@@ -222,6 +232,7 @@ function App() {
       localStorage.removeItem(CLAVE_PAGINA_ACTUAL);
       sessionStorage.removeItem('sgi:dialogo-vencidos-mostrado');
       setUsuarioActual(null);
+      setTokenValido(false);
       navigate('/login', { replace: true });
     },
   };
@@ -240,6 +251,7 @@ function App() {
               <InicioSesion
                 onAcceso={(usuario) => {
                   setUsuarioActual(usuario);
+                  setTokenValido(true);
                   navigate(`/${obtenerPaginaInicioPorRol(usuario.rol)}`, { replace: true });
                 }}
                 onRecuperar={() => navigate('/recuperar-contrasena')}
@@ -269,6 +281,10 @@ function App() {
         <Route
           path="/registro-estudiante"
           element={<RegistroEstudianteFirmado onVolver={() => navigate('/login')} />}
+        />
+        <Route
+          path="/registro-docente"
+          element={<RegistroDocenteFirmado onVolver={() => navigate('/login')} />}
         />
         {PAGINAS_PRIVADAS.map((pag) => (
           <Route

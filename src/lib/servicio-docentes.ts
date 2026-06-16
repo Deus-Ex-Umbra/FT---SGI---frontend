@@ -143,3 +143,35 @@ export const crearUsuarioDocentePorAdministrador = async (payload: CrearUsuarioD
     return respuesta.json();
 };
 
+export const cargarSolicitudesPendientesDocentes = async (): Promise<Docente[]> => {
+    const resp = await fetch(`${API_BASE}/prestamos/docentes/solicitudes`, {
+        headers: authHeaders(),
+    });
+    if (!resp.ok) throw new Error('No se pudo cargar las solicitudes de docentes');
+    const apiDocentes = (await resp.json()) as DocenteApi[];
+
+    return apiDocentes.map(mapDocenteApi);
+};
+
+export const aprobarDocenteEnBackend = async (id: string): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/prestamos/docentes/${id}/aprobar`, {
+        method: 'POST',
+        headers: authHeaders(),
+    });
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo aprobar al docente');
+    }
+};
+
+export const rechazarDocenteEnBackend = async (id: string): Promise<void> => {
+    const resp = await fetch(`${API_BASE}/prestamos/docentes/${id}/rechazar`, {
+        method: 'POST',
+        headers: authHeaders(),
+    });
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudo rechazar al docente');
+    }
+};
+

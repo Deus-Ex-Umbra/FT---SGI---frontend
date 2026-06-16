@@ -4,11 +4,15 @@ const API_AUTH_URL = `${API_BASE_URL}/auth`;
 
 import type {
     CrearUsuarioEstudiantePayload,
+    CrearUsuarioDocentePayload,
     InventarioGestion,
     ResultadoGestionInvitacion,
     ResultadoRegistroEstudiante,
+    ResultadoRegistroDocente,
     ResultadoVerificacionRegistroEstudiante,
+    ResultadoVerificacionRegistroDocente,
     UrlFirmadaRegistroEstudiante,
+    UrlFirmadaRegistroDocente,
     UsuarioSesion,
 } from '@/tipos/autenticacion';
 
@@ -387,6 +391,127 @@ export const registrarEstudianteConEnlaceFirmado = async (input: {
     if (!respuesta.ok) {
         const texto = await respuesta.text();
         throw new Error(texto || 'No se pudo completar el registro de estudiante.');
+    }
+
+    return respuesta.json();
+};
+
+export const generarUrlFirmadaRegistroDocente = async (): Promise<UrlFirmadaRegistroDocente> => {
+    const token = obtenerToken();
+    if (!token) {
+        throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
+    }
+
+    const respuesta = await fetch(`${API_AUTH_URL}/registro-docentes/url-firmada`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    if (!respuesta.ok) {
+        if (respuesta.status === 403) {
+            throw new Error('No tienes permisos para generar enlaces de registro.');
+        }
+        if (respuesta.status === 401) {
+            throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
+        }
+        const texto = await respuesta.text();
+        throw new Error(texto || 'No se pudo generar el enlace de registro.');
+    }
+
+    return respuesta.json();
+};
+
+export const obtenerUrlFirmadaRegistroDocenteActiva = async (): Promise<UrlFirmadaRegistroDocente> => {
+    const token = obtenerToken();
+    if (!token) {
+        throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
+    }
+
+    const respuesta = await fetch(`${API_AUTH_URL}/registro-docentes/url-firmada`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    if (!respuesta.ok) {
+        if (respuesta.status === 403) {
+            throw new Error('No tienes permisos para ver enlaces de registro.');
+        }
+        if (respuesta.status === 401) {
+            throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
+        }
+        const texto = await respuesta.text();
+        throw new Error(texto || 'No se pudo obtener el enlace de registro activo.');
+    }
+
+    return respuesta.json();
+};
+
+export const deshabilitarUrlFirmadaRegistroDocente = async (): Promise<ResultadoGestionInvitacion> => {
+    const token = obtenerToken();
+    if (!token) {
+        throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
+    }
+
+    const respuesta = await fetch(`${API_AUTH_URL}/registro-docentes/url-firmada/deshabilitar`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    if (!respuesta.ok) {
+        if (respuesta.status === 403) {
+            throw new Error('No tienes permisos para deshabilitar enlaces de registro.');
+        }
+        if (respuesta.status === 401) {
+            throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
+        }
+        const texto = await respuesta.text();
+        throw new Error(texto || 'No se pudo deshabilitar el enlace de registro.');
+    }
+
+    return respuesta.json();
+};
+
+export const verificarRegistroDocenteConEnlaceFirmado = async (input: {
+    eid: string;
+    exp: string;
+    nonce: string;
+    sig: string;
+}): Promise<ResultadoVerificacionRegistroDocente> => {
+    const url = `${API_AUTH_URL}/registro-docentes/verificar?eid=${encodeURIComponent(input.eid)}&exp=${encodeURIComponent(input.exp)}&nonce=${encodeURIComponent(input.nonce)}&sig=${encodeURIComponent(input.sig)}`;
+    const respuesta = await fetch(url);
+
+    if (!respuesta.ok) {
+        const texto = await respuesta.text();
+        throw new Error(texto || 'No se pudo verificar el enlace de registro.');
+    }
+
+    return respuesta.json();
+};
+
+export const registrarDocenteConEnlaceFirmado = async (input: {
+    eid: string;
+    exp: string;
+    nonce: string;
+    sig: string;
+    payload: CrearUsuarioDocentePayload;
+}): Promise<ResultadoRegistroDocente> => {
+    const url = `${API_AUTH_URL}/registro-docentes?eid=${encodeURIComponent(input.eid)}&exp=${encodeURIComponent(input.exp)}&nonce=${encodeURIComponent(input.nonce)}&sig=${encodeURIComponent(input.sig)}`;
+    const respuesta = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(input.payload),
+    });
+
+    if (!respuesta.ok) {
+        const texto = await respuesta.text();
+        throw new Error(texto || 'No se pudo completar el registro de docente.');
     }
 
     return respuesta.json();

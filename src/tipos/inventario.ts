@@ -187,8 +187,11 @@ export interface PrestamoCanastaRegistro {
     totalConsumibles?: number;
     totalCosas: number;
     cosas?: Array<{
-        idHerramienta: string;
-        codigoInventario: string;
+        idPrestamo?: string | number | null;
+        idHerramienta: string | null;
+        codigoInventario: string | null;
+        idContenedor?: number | null;
+        nombreContenedor?: string | null;
         nombre: string;
         registrado: boolean;
         estadoFisicoEntrega?: string;
@@ -261,7 +264,7 @@ export interface ItemCanastaConsumible {
 }
 
 export interface EquipoCanastaSeleccionado {
-    idHerramienta: string;
+    idHerramienta: string | null;
     registrado: boolean;
     bloqueado?: boolean;
 }

@@ -10,7 +10,7 @@ import type { EstadoFisicoItemActivo, ItemActivoResumen, PrestamoCanastaRegistro
 import { ESTADOS_FISICOS_ITEM, etiquetaEstadoFisicoItem, normalizarEstadoFisicoItem } from '@/utilidades/estados-fisico-activo';
 
 interface ItemDevolucionFila {
-    idHerramienta: string;
+    idHerramienta: string | null;
     codigoInventario: string;
     nombre: string;
     estadoDespachado: EstadoFisicoItemActivo;
@@ -167,13 +167,13 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
         });
     }, [bloqueCambios, canasta.observaciones, observacionesEditadas]);
 
-    const handleToggleFijoDevuelto = (idHerramienta: string, devuelto: boolean) => {
+    const handleToggleFijoDevuelto = (idHerramienta: string | null, devuelto: boolean) => {
         setFilasFijos((prev) =>
             prev.map((f) => (f.idHerramienta === idHerramienta ? { ...f, devuelto } : f))
         );
     };
 
-    const handleEstadoActualChange = (idHerramienta: string, estado: EstadoFisicoItemActivo) => {
+    const handleEstadoActualChange = (idHerramienta: string | null, estado: EstadoFisicoItemActivo) => {
         setFilasFijos((prev) =>
             prev.map((f) => (f.idHerramienta === idHerramienta ? { ...f, estadoActual: estado } : f))
         );
@@ -209,7 +209,7 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
                 equipos: filasFijos
                     .filter((f) => f.registrado)
                     .map((f) => ({
-                        idHerramienta: f.idHerramienta,
+                        idHerramienta: f.idHerramienta!,
                         estadoFisicoDevolucion: f.estadoActual,
                         devuelto: f.devuelto,
                     })),

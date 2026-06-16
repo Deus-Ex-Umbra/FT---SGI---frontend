@@ -15,6 +15,8 @@ interface Props {
     onNavegar: (pagina: PaginaApp) => void;
     onCerrarSesion: () => void;
     children: ReactNode;
+    onRecargar?: () => void;
+    recargando?: boolean;
 }
 
 export const LayoutPagina = ({
@@ -25,7 +27,9 @@ export const LayoutPagina = ({
     cantidad,
     onNavegar,
     onCerrarSesion,
-    children
+    children,
+    onRecargar,
+    recargando
 }: Props) => {
     const { es_movil } = useResponsive();
 
@@ -45,6 +49,8 @@ export const LayoutPagina = ({
                         subtitulo={subtitulo}
                         alertas={alertas}
                         cantidad={cantidad}
+                        onRecargar={onRecargar}
+                        recargando={recargando}
                     />
 
                     <main className="flex-1 overflow-y-auto p-4 space-y-4 animate-fade-in" key={paginaActiva}>
@@ -70,6 +76,8 @@ export const LayoutPagina = ({
                     subtitulo={subtitulo}
                     alertas={alertas}
                     cantidad={cantidad}
+                    onRecargar={onRecargar}
+                    recargando={recargando}
                 />
 
                 <main className="flex-1 overflow-y-auto p-5 space-y-4 animate-fade-in" key={paginaActiva}>

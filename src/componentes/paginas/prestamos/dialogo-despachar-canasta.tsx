@@ -16,15 +16,18 @@ interface Props {
     estudiantes?: Estudiante[];
     onCerrar: () => void;
     onConfirmar: (payload: {
-        equipos: Array<{ idHerramienta: string; registrado: boolean; estadoFisicoEntrega?: string }>;
+        equipos: Array<{ idPrestamo?: string | number | null; idHerramienta: string | null; registrado: boolean; estadoFisicoEntrega?: string }>;
         consumibles: Array<{ idLote: string; cantidad: number }>;
         carnetsRetenidos: string[];
     }) => Promise<void>;
 }
 
 interface FilaDespachoFijo {
-    idHerramienta: string;
-    codigoInventario: string;
+    idPrestamo?: string | number | null;
+    idHerramienta: string | null;
+    idContenedor?: number | null;
+    nombreContenedor?: string | null;
+    codigoInventario: string | null;
     nombre: string;
     registrado: boolean;
     estadoFisicoEntrega: EstadoFisicoItemActivo;
@@ -104,11 +107,14 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     }, [estudiantesCanasta]);
     const filasInicialesFijos = useMemo<FilaDespachoFijo[]>(() => {
         return (canasta.cosas ?? []).map((cosa) => {
-            const h = herramientas.find((it) => it.id === cosa.idHerramienta);
+            const h = cosa.idHerramienta ? herramientas.find((it) => it.id === cosa.idHerramienta) : null;
             const fisico = normalizarEstadoFisicoItem(h?.estadoFisico) ?? 'bueno';
             return {
+                idPrestamo: cosa.idPrestamo,
                 idHerramienta: cosa.idHerramienta,
-                codigoInventario: String(cosa.codigoInventario ?? h?.codigoInventario ?? '').trim(),
+                idContenedor: cosa.idContenedor,
+                nombreContenedor: cosa.nombreContenedor,
+                codigoInventario: cosa.codigoInventario ? String(cosa.codigoInventario).trim() : null,
                 nombre: String(cosa.nombre ?? h?.nombre ?? 'Activo').trim(),
                 registrado: cosa.registrado,
                 estadoFisicoEntrega: fisico,
@@ -173,19 +179,64 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
         setHerramientaSeleccionadaId('');
     };
 
-    const handleQuitarFilaFijo = (idHerramienta: string) => {
-        setFilasFijos((prev) => prev.filter((f) => f.idHerramienta !== idHerramienta));
+    const handleQuitarFilaFijo = (idPrestamo: string | number | null | undefined, idHerramienta: string | null) => {
+        setFilasFijos((prev) => prev.filter((f) => {
+            const matches = (idPrestamo && f.idPrestamo === idPrestamo) || (idHerramienta && f.idHerramienta === idHerramienta);
+            return !matches;
+        }));
     };
 
-    const handleToggleRegistrado = (idHerramienta: string, verificado: boolean) => {
+    const handleToggleRegistrado = (idPrestamo: string | number | null | undefined, idHerramienta: string | null, verificado: boolean) => {
         setFilasFijos((prev) =>
-            prev.map((f) => (f.idHerramienta === idHerramienta ? { ...f, registrado: verificado } : f))
+            prev.map((f) => {
+                const matches = (idPrestamo && f.idPrestamo === idPrestamo) || (idHerramienta && f.idHerramienta === idHerramienta);
+                return matches ? { ...f, registrado: verificado } : f;
+            })
         );
     };
 
-    const handleEstadoEntregaChange = (idHerramienta: string, estado: EstadoFisicoItemActivo) => {
+    const handleEstadoEntregaChange = (idPrestamo: string | number | null | undefined, idHerramienta: string | null, estado: EstadoFisicoItemActivo) => {
         setFilasFijos((prev) =>
-            prev.map((f) => (f.idHerramienta === idHerramienta ? { ...f, estadoFisicoEntrega: estado } : f))
+            prev.map((f) => {
+                const matches = (idPrestamo && f.idPrestamo === idPrestamo) || (idHerramienta && f.idHerramienta === idHerramienta);
+                return matches ? { ...f, estadoFisicoEntrega: estado } : f;
+            })
+        );
+    };
+
+    const handleAsignarFisico = (idPrestamo: string | number, item: ItemActivoResumen) => {
+        setFilasFijos((prev) =>
+            prev.map((f) => {
+                if (f.idPrestamo === idPrestamo) {
+                    return {
+                        ...f,
+                        idHerramienta: item.id,
+                        codigoInventario: item.codigoInventario || item.codigoUnico || '—',
+                        nombre: item.nombre,
+                        registrado: true,
+                        estadoFisicoEntrega: normalizarEstadoFisicoItem(item.estadoFisico) ?? 'bueno',
+                    };
+                }
+                return f;
+            })
+        );
+    };
+
+    const handleDesasignarFisico = (idPrestamo: string | number) => {
+        const originalCosa = (canasta.cosas ?? []).find((c) => c.idPrestamo === idPrestamo);
+        setFilasFijos((prev) =>
+            prev.map((f) => {
+                if (f.idPrestamo === idPrestamo) {
+                    return {
+                        ...f,
+                        idHerramienta: null,
+                        codigoInventario: null,
+                        nombre: originalCosa?.nombre ?? 'Activo (Solicitado)',
+                        registrado: false,
+                    };
+                }
+                return f;
+            })
         );
     };
 
@@ -213,6 +264,12 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
             return;
         }
 
+        const itemsSinFisico = filasFijos.filter(f => f.registrado && f.idHerramienta === null);
+        if (itemsSinFisico.length > 0) {
+            setError('Debes asignar un activo físico a todos los equipos solicitados antes de despachar.');
+            return;
+        }
+
         if (carnetsRetenidos.length === 0) {
             setError('Debes validar que el CU se retenga (selecciona al menos un estudiante para la retención del CU).');
             return;
@@ -222,6 +279,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
             setGuardando(true);
             await onConfirmar({
                 equipos: filasFijos.map((f) => ({
+                    idPrestamo: f.idPrestamo,
                     idHerramienta: f.idHerramienta,
                     registrado: f.registrado,
                     estadoFisicoEntrega: f.estadoFisicoEntrega,
@@ -313,34 +371,90 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                {filasFijos.map((fila) => (
-                                                    <tr key={fila.idHerramienta} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                                                {filasFijos.map((fila, index) => (
+                                                    <tr key={fila.idPrestamo ?? fila.idHerramienta ?? `row-${index}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                                         <td className="px-3 py-2 text-center">
                                                             <input
                                                                 type="checkbox"
                                                                 checked={fila.registrado}
-                                                                onChange={(e) => handleToggleRegistrado(fila.idHerramienta, e.target.checked)}
-                                                                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                                                title="Incluir en el despacho"
+                                                                disabled={fila.idHerramienta === null}
+                                                                onChange={(e) => handleToggleRegistrado(fila.idPrestamo, fila.idHerramienta, e.target.checked)}
+                                                                className={`h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${fila.idHerramienta === null ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                title={fila.idHerramienta === null ? 'Asigna un activo físico primero' : 'Incluir en el despacho'}
                                                             />
                                                         </td>
                                                         <td className="px-3 py-2 min-w-0">
-                                                             <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[240px] truncate" title={`[${fila.codigoInventario}] ${fila.nombre}`}>
-                                                                 [{fila.codigoInventario}] {fila.nombre}
-                                                                 {fila.esNuevo && (
-                                                                     <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[9px] font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300 shrink-0">
-                                                                         Nuevo
+                                                             {fila.idHerramienta === null ? (
+                                                                 <div className="flex flex-col gap-1.5">
+                                                                     <span className="font-semibold text-slate-500 italic dark:text-slate-400">
+                                                                         [Solicitado] {fila.nombreContenedor || fila.nombre}
                                                                      </span>
-                                                                 )}
-                                                             </div>
-                                                             <div className="text-[10px] text-slate-400">ID: {fila.idHerramienta}</div>
+                                                                     <div className="flex items-center gap-1.5 max-w-xs">
+                                                                         <Combobox<{ value: string; label: string }>
+                                                                             items={herramientas
+                                                                                 .filter(
+                                                                                     (h) =>
+                                                                                         String(h.contenedorId) === String(fila.idContenedor) &&
+                                                                                         h.estado === 'disponible' &&
+                                                                                         !filasFijos.some((f) => f.idHerramienta === h.id)
+                                                                                 )
+                                                                                 .map((h) => {
+                                                                                     const inv = String(h.codigoInventario ?? '').trim();
+                                                                                     const uni = String(h.codigoUnico ?? '').trim();
+                                                                                     const etiqueta = inv || uni ? `I: ${inv || '—'} | U: ${uni || '—'}` : 'SIN-CODIGO';
+                                                                                     return {
+                                                                                         value: h.id,
+                                                                                         label: `[${etiqueta}] ${h.nombre}`,
+                                                                                     };
+                                                                                 })}
+                                                                             value=""
+                                                                             onValueChange={(val) => {
+                                                                                 if (!val) return;
+                                                                                 const matchedItem = herramientas.find((h) => h.id === val);
+                                                                                 if (matchedItem && fila.idPrestamo) {
+                                                                                     handleAsignarFisico(fila.idPrestamo, matchedItem);
+                                                                                 }
+                                                                             }}
+                                                                             getItemValue={(item) => item.value}
+                                                                             getItemLabel={(item) => item.label}
+                                                                         >
+                                                                             <ComboboxInput placeholder="Asignar activo físico..." showClear className="h-8 text-xs" />
+                                                                             <ComboboxContent>
+                                                                                 <ComboboxEmpty>No hay activos físicos disponibles.</ComboboxEmpty>
+                                                                                 <ComboboxList<{ value: string; label: string }>>
+                                                                                     {(opcion) => (
+                                                                                         <ComboboxItem key={opcion.value} value={opcion.value}>
+                                                                                             {opcion.label}
+                                                                                         </ComboboxItem>
+                                                                                     )}
+                                                                                 </ComboboxList>
+                                                                             </ComboboxContent>
+                                                                         </Combobox>
+                                                                     </div>
+                                                                 </div>
+                                                             ) : (
+                                                                 <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[240px] truncate" title={`[${fila.codigoInventario}] ${fila.nombre}`}>
+                                                                     {fila.idContenedor ? (
+                                                                         <span className="text-[10px] bg-slate-100 text-slate-650 px-1.5 py-0.5 rounded mr-1.5 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                                                                             {fila.nombreContenedor || 'Contenedor'}
+                                                                         </span>
+                                                                     ) : null}
+                                                                     [{fila.codigoInventario || '—'}] {fila.nombre}
+                                                                     {fila.esNuevo && (
+                                                                         <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[9px] font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300 shrink-0">
+                                                                             Nuevo
+                                                                         </span>
+                                                                     )}
+                                                                     <div className="text-[10px] text-slate-400">ID: {fila.idHerramienta}</div>
+                                                                 </div>
+                                                             )}
                                                          </td>
                                                         <td className="px-3 py-2">
                                                             <select
                                                                 title="Estado físico al entregar"
                                                                 value={fila.estadoFisicoEntrega}
                                                                 disabled={!fila.registrado}
-                                                                onChange={(e) => handleEstadoEntregaChange(fila.idHerramienta, e.target.value as EstadoFisicoItemActivo)}
+                                                                onChange={(e) => handleEstadoEntregaChange(fila.idPrestamo, fila.idHerramienta, e.target.value as EstadoFisicoItemActivo)}
                                                                 className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:disabled:bg-slate-950"
                                                             >
                                                                 {ESTADOS_FISICOS_ITEM.map((e) => (
@@ -349,16 +463,30 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                             </select>
                                                         </td>
                                                         <td className="px-3 py-2 text-center">
-                                                            <Boton
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleQuitarFilaFijo(fila.idHerramienta)}
-                                                                className="h-7 w-7 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                                                title="Quitar de la lista"
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Boton>
+                                                            {fila.idContenedor && fila.idHerramienta !== null ? (
+                                                                <Boton
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => fila.idPrestamo && handleDesasignarFisico(fila.idPrestamo)}
+                                                                    className="h-7 w-7 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                                                                    title="Desasignar activo físico"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Boton>
+                                                            ) : (
+                                                                <Boton
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleQuitarFilaFijo(fila.idPrestamo, fila.idHerramienta)}
+                                                                    disabled={fila.idHerramienta === null}
+                                                                    className="h-7 w-7 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-30 disabled:hover:bg-transparent"
+                                                                    title="Quitar de la lista"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Boton>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -469,34 +597,90 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                            {filasFijos.map((fila) => (
-                                                <tr key={fila.idHerramienta} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                                            {filasFijos.map((fila, index) => (
+                                                <tr key={fila.idPrestamo ?? fila.idHerramienta ?? `row-${index}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                                     <td className="px-3 py-2 text-center">
                                                         <input
                                                             type="checkbox"
                                                             checked={fila.registrado}
-                                                            onChange={(e) => handleToggleRegistrado(fila.idHerramienta, e.target.checked)}
-                                                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                                            title="Incluir en el despacho"
+                                                            disabled={fila.idHerramienta === null}
+                                                            onChange={(e) => handleToggleRegistrado(fila.idPrestamo, fila.idHerramienta, e.target.checked)}
+                                                            className={`h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${fila.idHerramienta === null ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            title={fila.idHerramienta === null ? 'Asigna un activo físico primero' : 'Incluir en el despacho'}
                                                         />
                                                     </td>
                                                     <td className="px-3 py-2 min-w-0">
-                                                         <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[240px] truncate" title={`[${fila.codigoInventario}] ${fila.nombre}`}>
-                                                             [{fila.codigoInventario}] {fila.nombre}
-                                                             {fila.esNuevo && (
-                                                                 <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[9px] font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300 shrink-0">
-                                                                     Nuevo
+                                                         {fila.idHerramienta === null ? (
+                                                             <div className="flex flex-col gap-1.5">
+                                                                 <span className="font-semibold text-slate-500 italic dark:text-slate-400">
+                                                                     [Solicitado] {fila.nombreContenedor || fila.nombre}
                                                                  </span>
-                                                             )}
-                                                         </div>
-                                                         <div className="text-[10px] text-slate-400">ID: {fila.idHerramienta}</div>
+                                                                 <div className="flex items-center gap-1.5 max-w-xs">
+                                                                     <Combobox<{ value: string; label: string }>
+                                                                         items={herramientas
+                                                                             .filter(
+                                                                                 (h) =>
+                                                                                     String(h.contenedorId) === String(fila.idContenedor) &&
+                                                                                     h.estado === 'disponible' &&
+                                                                                     !filasFijos.some((f) => f.idHerramienta === h.id)
+                                                                             )
+                                                                             .map((h) => {
+                                                                                 const inv = String(h.codigoInventario ?? '').trim();
+                                                                                 const uni = String(h.codigoUnico ?? '').trim();
+                                                                                 const etiqueta = inv || uni ? `I: ${inv || '—'} | U: ${uni || '—'}` : 'SIN-CODIGO';
+                                                                                 return {
+                                                                                     value: h.id,
+                                                                                     label: `[${etiqueta}] ${h.nombre}`,
+                                                                                 };
+                                                                             })}
+                                                                         value=""
+                                                                         onValueChange={(val) => {
+                                                                             if (!val) return;
+                                                                             const matchedItem = herramientas.find((h) => h.id === val);
+                                                                             if (matchedItem && fila.idPrestamo) {
+                                                                                 handleAsignarFisico(fila.idPrestamo, matchedItem);
+                                                                             }
+                                                                         }}
+                                                                         getItemValue={(item) => item.value}
+                                                                         getItemLabel={(item) => item.label}
+                                                                     >
+                                                                         <ComboboxInput placeholder="Asignar activo físico..." showClear className="h-8 text-xs" />
+                                                                         <ComboboxContent>
+                                                                             <ComboboxEmpty>No hay activos físicos disponibles.</ComboboxEmpty>
+                                                                             <ComboboxList<{ value: string; label: string }>>
+                                                                                 {(opcion) => (
+                                                                                     <ComboboxItem key={opcion.value} value={opcion.value}>
+                                                                                         {opcion.label}
+                                                                                     </ComboboxItem>
+                                                                                 )}
+                                                                             </ComboboxList>
+                                                                         </ComboboxContent>
+                                                                     </Combobox>
+                                                                 </div>
+                                                             </div>
+                                                         ) : (
+                                                             <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[240px] truncate" title={`[${fila.codigoInventario}] ${fila.nombre}`}>
+                                                                 {fila.idContenedor ? (
+                                                                     <span className="text-[10px] bg-slate-100 text-slate-650 px-1.5 py-0.5 rounded mr-1.5 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                                                                         {fila.nombreContenedor || 'Contenedor'}
+                                                                     </span>
+                                                                 ) : null}
+                                                                 [{fila.codigoInventario || '—'}] {fila.nombre}
+                                                                 {fila.esNuevo && (
+                                                                     <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[9px] font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300 shrink-0">
+                                                                         Nuevo
+                                                                     </span>
+                                                                 )}
+                                                                 <div className="text-[10px] text-slate-400">ID: {fila.idHerramienta}</div>
+                                                             </div>
+                                                         )}
                                                      </td>
                                                     <td className="px-3 py-2">
                                                         <select
                                                             title="Estado físico al entregar"
                                                             value={fila.estadoFisicoEntrega}
                                                             disabled={!fila.registrado}
-                                                            onChange={(e) => handleEstadoEntregaChange(fila.idHerramienta, e.target.value as EstadoFisicoItemActivo)}
+                                                            onChange={(e) => handleEstadoEntregaChange(fila.idPrestamo, fila.idHerramienta, e.target.value as EstadoFisicoItemActivo)}
                                                             className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:disabled:bg-slate-950"
                                                         >
                                                             {ESTADOS_FISICOS_ITEM.map((e) => (
@@ -505,16 +689,30 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                         </select>
                                                     </td>
                                                     <td className="px-3 py-2 text-center">
-                                                        <Boton
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => handleQuitarFilaFijo(fila.idHerramienta)}
-                                                            className="h-7 w-7 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                                            title="Quitar de la lista"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Boton>
+                                                        {fila.idContenedor && fila.idHerramienta !== null ? (
+                                                            <Boton
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => fila.idPrestamo && handleDesasignarFisico(fila.idPrestamo)}
+                                                                className="h-7 w-7 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                                                                title="Desasignar activo físico"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Boton>
+                                                        ) : (
+                                                            <Boton
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleQuitarFilaFijo(fila.idPrestamo, fila.idHerramienta)}
+                                                                disabled={fila.idHerramienta === null}
+                                                                className="h-7 w-7 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-30 disabled:hover:bg-transparent"
+                                                                title="Quitar de la lista"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Boton>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}

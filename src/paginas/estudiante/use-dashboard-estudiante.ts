@@ -32,12 +32,6 @@ export const useDashboardEstudiante = (onSesionExpirada: () => void) => {
 
     useEffect(() => {
         void cargar();
-
-        const intervalo = setInterval(() => {
-            void cargar(true);
-        }, 5000);
-
-        return () => clearInterval(intervalo);
     }, []);
 
     return {

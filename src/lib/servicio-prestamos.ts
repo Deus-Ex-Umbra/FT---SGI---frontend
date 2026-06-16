@@ -289,6 +289,7 @@ export const crearCanastaPrestamoEnBackend = async (payload: {
     carnetsEstudiantes?: string[];
     idDocente: number;
     items: Array<{ idItem: string; idHerramienta?: string; registrado?: boolean }>;
+    contenedores?: Array<{ idContenedor: number; cantidad: number }>;
     materiales: Array<{ idLote: string; idMaterial?: string; cantidad: number; motivo: string }>;
     fechaPrestamo: string;
     fechaDevolucion: string;
@@ -366,7 +367,7 @@ export const rechazarCanastaEnBackend = async (id: string, motivo: string): Prom
 };
 
 export const despacharCanastaEnBackend = async (id: string, payload: {
-    equipos?: Array<{ idHerramienta: string; registrado: boolean; estadoFisicoEntrega?: string }>;
+    equipos?: Array<{ idPrestamo?: string | number | null; idHerramienta: string | null; registrado: boolean; estadoFisicoEntrega?: string }>;
     consumibles?: Array<{ idLote: string; cantidad: number }>;
     carnetsRetenidos?: string[];
 }): Promise<any> => {

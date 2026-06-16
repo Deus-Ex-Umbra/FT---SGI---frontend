@@ -24,7 +24,7 @@ const colorEstadoCanasta = (estado: EstadoPrestamo) => {
 };
 
 export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
-    const { cargando, error, datos } = useDashboardEstudiante(onCerrarSesion);
+    const { cargando, error, datos, recargar } = useDashboardEstudiante(onCerrarSesion);
     const [descargandoId, setDescargandoId] = useState<string | null>(null);
     const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
     const [modalVerActivos, setModalVerActivos] = useState<typeof prestamos[number] | null>(null);
@@ -179,7 +179,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                             {lista.map((p) => (
                                 <tr key={p.id} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                     <td className="px-6 py-3 font-mono text-slate-800 dark:text-slate-100 font-bold">{p.codigo ?? p.id}</td>
-                                    <td className="px-6 py-3 text-slate-700 dark:text-slate-350 font-semibold">{obtenerNombrePrestamo(p)}</td>
+                                    <td className="px-6 py-3 text-slate-700 dark:text-slate-355 font-semibold">{obtenerNombrePrestamo(p)}</td>
                                     <td className="px-6 py-3 text-slate-600 dark:text-slate-400">{p.docente}</td>
                                     <td className="px-6 py-3 text-center text-slate-550 dark:text-slate-400">{formatearFechaHora(p.fechaPrestamo)}</td>
                                     <td className="px-6 py-3 text-center text-slate-550 dark:text-slate-400">{p.fechaDevolucion ? formatearFechaHora(p.fechaDevolucion) : '—'}</td>
@@ -236,7 +236,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
         );
     };
 
-    if (cargando) {
+    if (cargando && !datos) {
         return (
             <LayoutPagina paginaActiva="prestamos" titulo="Mis préstamos" subtitulo="Cargando tus movimientos..." onNavegar={onNavegar} onCerrarSesion={onCerrarSesion}>
                 <div className="flex h-40 items-center justify-center">
@@ -248,7 +248,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
 
     if (error || !datos) {
         return (
-            <LayoutPagina paginaActiva="prestamos" titulo="Mis préstamos" subtitulo="Préstamos activos e historial" onNavegar={onNavegar} onCerrarSesion={onCerrarSesion}>
+            <LayoutPagina paginaActiva="prestamos" titulo="Mis préstamos" subtitulo="Préstamos activos e historial" onNavegar={onNavegar} onCerrarSesion={onCerrarSesion} onRecargar={recargar} recargando={cargando}>
                 <div className="rounded-xl border border-red-200 bg-red-50 p-6 dark:border-red-900/40 dark:bg-red-900/10">
                     <p className="text-sm font-medium text-red-800 dark:text-red-400">No se pudieron cargar tus préstamos.</p>
                     <p className="mt-1 text-sm text-red-600 dark:text-red-300">{error}</p>
@@ -258,7 +258,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
     }
 
     return (
-        <LayoutPagina paginaActiva="prestamos" titulo="Mis préstamos" subtitulo="Revisa tus préstamos actuales y tu historial reciente" onNavegar={onNavegar} onCerrarSesion={onCerrarSesion}>
+        <LayoutPagina paginaActiva="prestamos" titulo="Mis préstamos" subtitulo="Revisa tus préstamos actuales y tu historial reciente" onNavegar={onNavegar} onCerrarSesion={onCerrarSesion} onRecargar={recargar} recargando={cargando}>
             <div className="space-y-6">
                 {errorDescarga && (
                     <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300">

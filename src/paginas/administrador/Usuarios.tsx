@@ -127,6 +127,8 @@ export const Usuarios = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
             subtitulo="Gestión de administradores, encargados, docentes y estudiantes"
             onNavegar={onNavegar}
             onCerrarSesion={onCerrarSesion}
+            onRecargar={cargarUsuarios}
+            recargando={cargando}
         >
             <Tabs value={tabActiva} onValueChange={(val) => setTabActiva(val as 'activos' | 'inactivos')} className="w-full">
                 <div className="flex flex-col gap-6">

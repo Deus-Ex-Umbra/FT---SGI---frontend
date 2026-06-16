@@ -85,9 +85,40 @@ export const instalarInterceptorFetch = (opciones?: OpcionesInterceptor) => {
     try {
       const resp = await originalFetch(input as any, init);
 
-      if (esApi && resp.status >= 500) {
-        notificarSiCorresponde('servidor', intervaloMs);
-        console.error('[API] Respuesta 5xx', { url, status: resp.status, statusText: resp.statusText });
+      if (esApi) {
+        if (resp.status === 401) {
+          const esIniciarSesion = url.includes('/auth/iniciar-sesion') || url.includes('/iniciar-sesion');
+          const tokenActual = localStorage.getItem('token_acceso');
+          if (!esIniciarSesion && tokenActual) {
+            console.warn('[API] Sesión expirada o no autorizada (401)', { url });
+            
+            // Limpiar datos de sesión local
+            localStorage.removeItem('token_acceso');
+            localStorage.removeItem('usuario');
+            sessionStorage.removeItem('sgi:dialogo-vencidos-mostrado');
+            
+            // Notificar al estado de React
+            window.dispatchEvent(new Event('sgi:usuario-actualizado'));
+
+            // Redireccionar si no estamos en una ruta pública
+            const path = window.location.pathname;
+            const rutasPublicas = ['/login', '/recuperar-contrasena', '/subir-solicitud', '/inscribir-materia', '/registro-estudiante'];
+            const esRutaPublica = rutasPublicas.some(ruta => path.startsWith(ruta) || path === ruta);
+
+            if (!esRutaPublica) {
+              toast.error('Tu sesión ha expirado', {
+                id: 'sesion-expirada',
+                description: 'Por favor, inicia sesión nuevamente.',
+              });
+              
+              // Redirección nativa para limpiar cualquier estado corrupto de React y forzar volver a login
+              window.location.href = '/login';
+            }
+          }
+        } else if (resp.status >= 500) {
+          notificarSiCorresponde('servidor', intervaloMs);
+          console.error('[API] Respuesta 5xx', { url, status: resp.status, statusText: resp.statusText });
+        }
       }
 
       return resp;

@@ -12,6 +12,7 @@ import { ahoraInputLocal, apiDateTimeAInputLocal, sumarHorasInputLocal } from '@
 import { crearCanastaPrestamoEnBackend, editarCanastaPrestamoEnBackend } from '@/lib/servicio-prestamos';
 import { obtenerUsuarioActual, listarMisInventarios } from '@/lib/servicio-autenticacion';
 import { useInventario } from '@/contextos/ContextoInventario';
+import { cargarContenedoresPorInventarioEnBackend } from '@/lib/servicio-activos';
 import { useCierreSeguro } from '@/hooks/use-cierre-seguro';
 import { normalizarEstadoItem } from '@/utilidades/estados-activo';
 import { listarGruposDocencia, listarSubgruposPrestamoDocencia } from '@/lib/servicio-docencia';
@@ -135,6 +136,26 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     const [docenteSeleccionado, setDocenteSeleccionado] = useState('');
     const [equipoSeleccionado, setEquipoSeleccionado] = useState('');
     const [error, setError] = useState('');
+
+    const [contenedores, setContenedores] = useState<Array<{ id: number; nombre: string; ubicacion: string }>>([]);
+    const [cargandoContenedores, setCargandoContenedores] = useState(false);
+    const [cantidadesContenedores, setCantidadesContenedores] = useState<Record<number, number>>({});
+
+
+    useEffect(() => {
+        if (canasta && esDocente) {
+            const counts: Record<number, number> = {};
+            (canasta.cosas ?? []).forEach((cosa: any) => {
+                if (cosa.idContenedor) {
+                    const cid = Number(cosa.idContenedor);
+                    counts[cid] = (counts[cid] ?? 0) + 1;
+                }
+            });
+            setCantidadesContenedores(counts);
+        } else {
+            setCantidadesContenedores({});
+        }
+    }, [canasta, esDocente]);
     const [guardando, setGuardando] = useState(false);
     const [modalAlta, setModalAlta] = useState<'estudiante' | 'docente' | null>(null);
     const [nuevoEstudiante, setNuevoEstudiante] = useState<NuevoEstudianteForm>(NUEVO_ESTUDIANTE_INICIAL);
@@ -200,6 +221,25 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
 
     const [misInventarios, setMisInventarios] = useState<Array<{ id: number; nombre: string; descripcion?: string; puedeEditarFungibles?: boolean }>>([]);
     const [idInventarioSeleccionado, setIdInventarioSeleccionado] = useState<string>('');
+
+    useEffect(() => {
+        if (!idInventarioSeleccionado) {
+            setContenedores([]);
+            return;
+        }
+        const fetchContenedores = async () => {
+            try {
+                setCargandoContenedores(true);
+                const data = await cargarContenedoresPorInventarioEnBackend(Number(idInventarioSeleccionado));
+                setContenedores(data);
+            } catch (err) {
+                console.error('Error al cargar contenedores:', err);
+            } finally {
+                setCargandoContenedores(false);
+            }
+        };
+        void fetchContenedores();
+    }, [idInventarioSeleccionado]);
 
     // Fungible States
     const [fungibleSeleccionadoId, setFungibleSeleccionadoId] = useState('');
@@ -341,7 +381,19 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
         } else {
             setCarnetsRetenidos([]);
         }
-    }, [canasta?.id, docentePredeterminado?.id]);
+        if (canasta && esDocente) {
+            const counts: Record<number, number> = {};
+            (canasta.cosas ?? []).forEach((cosa: any) => {
+                if (cosa.idContenedor) {
+                    const cid = Number(cosa.idContenedor);
+                    counts[cid] = (counts[cid] ?? 0) + 1;
+                }
+            });
+            setCantidadesContenedores(counts);
+        } else {
+            setCantidadesContenedores({});
+        }
+    }, [canasta?.id, docentePredeterminado?.id, esDocente]);
 
     useEffect(() => {
         if (!esDocente || esEdicion || !docentePredeterminado?.id) return;
@@ -367,11 +419,24 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
         setNuevoDocente(NUEVO_DOCENTE_INICIAL);
     };
 
+    const inicialesContenedores = useMemo(() => {
+        if (!canasta || !esDocente) return {};
+        const counts: Record<number, number> = {};
+        (canasta.cosas ?? []).forEach((cosa: any) => {
+            if (cosa.idContenedor) {
+                const cid = Number(cosa.idContenedor);
+                counts[cid] = (counts[cid] ?? 0) + 1;
+            }
+        });
+        return counts;
+    }, [canasta, esDocente]);
+
     const estaSucio = useMemo(() => {
         const baseCambio = JSON.stringify(campos) !== JSON.stringify(camposIniciales);
         const seleccionesPendientes = Boolean(estudianteSeleccionado || docenteSeleccionado || equipoSeleccionado);
-        return baseCambio || seleccionesPendientes;
-    }, [campos, camposIniciales, docenteSeleccionado, equipoSeleccionado, estudianteSeleccionado]);
+        const contenedoresSucios = esDocente && JSON.stringify(cantidadesContenedores) !== JSON.stringify(inicialesContenedores);
+        return baseCambio || seleccionesPendientes || contenedoresSucios;
+    }, [campos, camposIniciales, docenteSeleccionado, equipoSeleccionado, estudianteSeleccionado, esDocente, cantidadesContenedores, inicialesContenedores]);
 
     const cierreSeguro = useCierreSeguro({
         estaSucio,
@@ -555,7 +620,8 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
         setEquipoSeleccionado('');
     };
 
-    const quitarEquipo = (id: string) => {
+    const quitarEquipo = (id: string | null) => {
+        if (!id) return;
         setCampos((prev) => ({
             ...prev,
             equipos: prev.equipos.filter((equipo) => equipo.idHerramienta !== id || equipo.bloqueado),
@@ -677,13 +743,23 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
             setError('Debes seleccionar estudiante y docente.');
             return;
         }
-        if (campos.equipos.length === 0 && campos.consumibles.length === 0) {
-            setError('La canasta debe tener al menos un activo fijo o un material fungible.');
-            return;
-        }
-        if (campos.equipos.length > 0 && !campos.equipos.some((equipo) => equipo.registrado)) {
-            setError('Debes marcar al menos un activo fijo para registrar/descontar.');
-            return;
+
+        const totalContenedores = Object.values(cantidadesContenedores).reduce((a, b) => a + b, 0);
+
+        if (esDocente) {
+            if (totalContenedores === 0 && campos.consumibles.length === 0) {
+                setError('La solicitud debe tener al menos un equipo o un material fungible.');
+                return;
+            }
+        } else {
+            if (campos.equipos.length === 0 && campos.consumibles.length === 0) {
+                setError('La canasta debe tener al menos un activo fijo o un material fungible.');
+                return;
+            }
+            if (campos.equipos.length > 0 && !campos.equipos.some((equipo) => equipo.registrado)) {
+                setError('Debes marcar al menos un activo fijo para registrar/descontar.');
+                return;
+            }
         }
 
         if (campos.fechaDevolucion && new Date(campos.fechaDevolucion).getTime() <= new Date(campos.fechaPrestamo).getTime()) {
@@ -694,9 +770,15 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
         try {
             setGuardando(true);
             const payloadItems = campos.equipos.map((equipo) => ({
-                idItem: equipo.idHerramienta,
+                idItem: equipo.idHerramienta!,
                 registrado: equipo.registrado,
             }));
+
+            const payloadContenedores = esDocente
+                ? Object.entries(cantidadesContenedores)
+                    .map(([id, qty]) => ({ idContenedor: Number(id), cantidad: qty }))
+                    .filter((c) => c.cantidad > 0)
+                : [];
 
             if (canasta) {
                 await editarCanastaPrestamoEnBackend(canasta.id, {
@@ -705,7 +787,8 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                     fechaPrestamo: campos.fechaPrestamo,
                     fechaDevolucion: campos.fechaDevolucion || null,
                     observaciones: campos.observaciones,
-                    items: payloadItems,
+                    items: esDocente ? [] : payloadItems,
+                    contenedores: payloadContenedores,
                     materiales: campos.consumibles.map(c => ({ idLote: c.idLote, cantidad: c.cantidad, motivo: c.motivo })),
                     carnetsRetenidos,
                 });
@@ -714,7 +797,8 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                     carnetEstudiante: campos.carnetsEstudiantes[0] || '',
                     carnetsEstudiantes: campos.carnetsEstudiantes,
                     idDocente: Number(campos.idDocente),
-                    items: payloadItems,
+                    items: esDocente ? [] : payloadItems,
+                    contenedores: payloadContenedores,
                     materiales: campos.consumibles.map(c => ({ idLote: c.idLote, cantidad: c.cantidad, motivo: c.motivo })),
                     fechaPrestamo: campos.fechaPrestamo,
                     fechaDevolucion: campos.fechaDevolucion,
@@ -733,7 +817,8 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
         }
     };
 
-    const nombreEquipo = (id: string) => {
+    const nombreEquipo = (id: string | null) => {
+        if (!id) return '';
         const eq = herramientas.find((h) => h.id === id);
         if (!eq) return id;
         const inv = String(eq.codigoInventario ?? '').trim();
@@ -757,6 +842,82 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     const nombreDocente = (id: string) => {
         const docente = docentes.find((item) => item.id === id);
         return docente ? `[${docente.codigo}] ${docente.apellido}, ${docente.nombre}` : id;
+    };
+
+    const renderSeccionContenedoresDocente = () => {
+        return (
+            <div className="rounded-md border border-slate-200 p-4 dark:border-slate-700 bg-slate-50/30 space-y-4">
+                <div>
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Equipos Solicitados</h3>
+                    <p className="text-xs text-slate-500">Selecciona la cantidad de equipos que necesitas por tipo.</p>
+                </div>
+                {cargandoContenedores ? (
+                    <div className="flex items-center justify-center py-6 text-xs text-slate-500">
+                        <span className="animate-pulse">Cargando tipos de equipos disponibles...</span>
+                    </div>
+                ) : contenedores.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-4 text-center">No hay tipos de equipos disponibles en este inventario.</p>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {contenedores.map((cont) => {
+                            const qty = cantidadesContenedores[cont.id] ?? 0;
+                            return (
+                                <div key={cont.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/40 hover:border-slate-300 transition-colors">
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{cont.nombre}</p>
+                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{cont.ubicacion || 'General'}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <Boton
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8 rounded-md hover:bg-slate-100 hover:text-slate-900 border-slate-200 dark:border-slate-800 dark:hover:bg-slate-900/60"
+                                            onClick={() => {
+                                                setCantidadesContenedores((prev) => ({
+                                                    ...prev,
+                                                    [cont.id]: Math.max(0, qty - 1),
+                                                }));
+                                            }}
+                                            disabled={qty <= 0}
+                                        >
+                                            -
+                                        </Boton>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={qty}
+                                            onChange={(e) => {
+                                                const val = Math.max(0, parseInt(e.target.value) || 0);
+                                                setCantidadesContenedores((prev) => ({
+                                                    ...prev,
+                                                    [cont.id]: val,
+                                                }));
+                                            }}
+                                            className="h-8 w-14 text-center text-xs font-medium p-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        />
+                                        <Boton
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8 rounded-md hover:bg-slate-100 hover:text-slate-900 border-slate-200 dark:border-slate-800 dark:hover:bg-slate-900/60"
+                                            onClick={() => {
+                                                setCantidadesContenedores((prev) => ({
+                                                    ...prev,
+                                                    [cont.id]: qty + 1,
+                                                }));
+                                            }}
+                                        >
+                                            +
+                                        </Boton>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -1201,70 +1362,74 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                             <TabsTrigger value="materiales" className="text-xs">Activos Fungibles</TabsTrigger>
                         </TabsList>
                         <TabsContent value="equipos" className="mt-4 space-y-4">
-                            <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
-                                <div className="mb-2 flex items-center justify-between gap-3">
-                                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Equipos en canasta</p>
-                                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                                        {campos.equipos.filter((equipo) => equipo.registrado).length} de {campos.equipos.length} marcado(s) para registrar/descontar
-                                    </span>
-                                </div>
-                                <div className="flex flex-col gap-2 sm:flex-row">
-                                    <div className="flex-1">
-                                        <Combobox<OpcionSelector>
-                                            items={opcionesEquipos}
-                                            value={equipoSeleccionado}
-                                            onValueChange={setEquipoSeleccionado}
-                                            getItemValue={(opcion) => opcion.value}
-                                            getItemLabel={(opcion) => opcion.label}
-                                        >
-                                            <ComboboxInput placeholder="Buscar equipo para agregar..." showClear />
-                                            <ComboboxContent>
-                                                <ComboboxEmpty>No hay equipos disponibles.</ComboboxEmpty>
-                                                <ComboboxList<OpcionSelector>>
-                                                    {(opcion) => (
-                                                        <ComboboxItem key={opcion.value} value={opcion.value}>
-                                                            {opcion.label}
-                                                        </ComboboxItem>
-                                                    )}
-                                                </ComboboxList>
-                                            </ComboboxContent>
-                                        </Combobox>
+                            {esDocente ? (
+                                renderSeccionContenedoresDocente()
+                            ) : (
+                                <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
+                                    <div className="mb-2 flex items-center justify-between gap-3">
+                                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Equipos en canasta</p>
+                                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                                            {campos.equipos.filter((equipo) => equipo.registrado).length} de {campos.equipos.length} marcado(s) para registrar/descontar
+                                        </span>
                                     </div>
-                                    <Boton type="button" onClick={agregarEquipo} disabled={!equipoSeleccionado} className="h-9 px-3 text-xs font-semibold">
-                                        Agregar
-                                    </Boton>
-                                </div>
-                                <div className="mt-3 space-y-2">
-                                    {campos.equipos.length === 0 ? (
-                                        <p className="text-[11px] text-slate-400 dark:text-slate-500">Sin equipos añadidos.</p>
-                                    ) : campos.equipos.map((equipo) => (
-                                        <div key={equipo.idHerramienta} className="flex items-start justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">
-                                            <div className="min-w-0 flex-1">
-                                                <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-100">{nombreEquipo(equipo.idHerramienta)}</p>
-                                                <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-
-                                                    {equipo.bloqueado ? (
-                                                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                                            Ya registrado
-                                                        </span>
-                                                    ) : null}
-                                                </div>
-                                            </div>
-                                            <Boton
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                title={equipo.bloqueado ? 'No se puede quitar un equipo ya registrado' : 'Quitar equipo'}
-                                                onClick={() => quitarEquipo(equipo.idHerramienta)}
-                                                disabled={equipo.bloqueado}
-                                                className="h-7 px-2 text-[11px]"
+                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                        <div className="flex-1">
+                                            <Combobox<OpcionSelector>
+                                                items={opcionesEquipos}
+                                                value={equipoSeleccionado}
+                                                onValueChange={setEquipoSeleccionado}
+                                                getItemValue={(opcion) => opcion.value}
+                                                getItemLabel={(opcion) => opcion.label}
                                             >
-                                                Quitar
-                                            </Boton>
+                                                <ComboboxInput placeholder="Buscar equipo para agregar..." showClear />
+                                                <ComboboxContent>
+                                                    <ComboboxEmpty>No hay equipos disponibles.</ComboboxEmpty>
+                                                    <ComboboxList<OpcionSelector>>
+                                                        {(opcion) => (
+                                                            <ComboboxItem key={opcion.value} value={opcion.value}>
+                                                                {opcion.label}
+                                                            </ComboboxItem>
+                                                        )}
+                                                    </ComboboxList>
+                                                </ComboboxContent>
+                                            </Combobox>
                                         </div>
-                                    ))}
+                                        <Boton type="button" onClick={agregarEquipo} disabled={!equipoSeleccionado} className="h-9 px-3 text-xs font-semibold">
+                                            Agregar
+                                        </Boton>
+                                    </div>
+                                    <div className="mt-3 space-y-2">
+                                        {campos.equipos.length === 0 ? (
+                                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Sin equipos añadidos.</p>
+                                        ) : campos.equipos.map((equipo) => (
+                                            <div key={equipo.idHerramienta} className="flex items-start justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-100">{nombreEquipo(equipo.idHerramienta)}</p>
+                                                    <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+
+                                                        {equipo.bloqueado ? (
+                                                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                                                Ya registrado
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+                                                <Boton
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    title={equipo.bloqueado ? 'No se puede quitar un equipo ya registrado' : 'Quitar equipo'}
+                                                    onClick={() => quitarEquipo(equipo.idHerramienta)}
+                                                    disabled={equipo.bloqueado}
+                                                    className="h-7 px-2 text-[11px]"
+                                                >
+                                                    Quitar
+                                                </Boton>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </TabsContent>
                         <TabsContent value="materiales" className="mt-4 space-y-4">
                             <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
@@ -1379,71 +1544,76 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                         </TabsContent>
                     </Tabs>
                 ) : (
-                    <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Equipos en canasta</p>
-                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                                {campos.equipos.filter((equipo) => equipo.registrado).length} de {campos.equipos.length} marcado(s) para registrar/descontar
-                            </span>
-                        </div>
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                            <div className="flex-1">
-                                <Combobox<OpcionSelector>
-                                    items={opcionesEquipos}
-                                    value={equipoSeleccionado}
-                                    onValueChange={setEquipoSeleccionado}
-                                    getItemValue={(opcion) => opcion.value}
-                                    getItemLabel={(opcion) => opcion.label}
-                                >
-                                    <ComboboxInput placeholder="Buscar equipo para agregar..." showClear />
-                                    <ComboboxContent>
-                                        <ComboboxEmpty>No hay equipos disponibles.</ComboboxEmpty>
-                                        <ComboboxList<OpcionSelector>>
-                                            {(opcion) => (
-                                                <ComboboxItem key={opcion.value} value={opcion.value}>
-                                                    {opcion.label}
-                                                </ComboboxItem>
-                                            )}
-                                        </ComboboxList>
-                                    </ComboboxContent>
-                                </Combobox>
+                    esDocente ? (
+                        renderSeccionContenedoresDocente()
+                    ) : (
+                        <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Equipos en canasta</p>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    {campos.equipos.filter((equipo) => equipo.registrado).length} de {campos.equipos.length} marcado(s) para registrar/descontar
+                                </span>
                             </div>
-                            <Boton type="button" onClick={agregarEquipo} disabled={!equipoSeleccionado} className="h-9 px-3 text-xs font-semibold">
-                                Agregar
-                            </Boton>
-                        </div>
-                        <div className="mt-3 space-y-2">
-                            {campos.equipos.length === 0 ? (
-                                <p className="text-[11px] text-slate-400 dark:text-slate-500">Sin equipos añadidos.</p>
-                            ) : campos.equipos.map((equipo) => (
-                                <div key={equipo.idHerramienta} className="flex items-start justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-100">{nombreEquipo(equipo.idHerramienta)}</p>
-                                        <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-
-                                            {equipo.bloqueado ? (
-                                                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                                    Ya registrado
-                                                </span>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                    <Boton
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        title={equipo.bloqueado ? 'No se puede quitar un equipo ya registrado' : 'Quitar equipo'}
-                                        onClick={() => quitarEquipo(equipo.idHerramienta)}
-                                        disabled={equipo.bloqueado}
-                                        className="h-7 px-2 text-[11px]"
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <div className="flex-1">
+                                    <Combobox<OpcionSelector>
+                                        items={opcionesEquipos}
+                                        value={equipoSeleccionado}
+                                        onValueChange={setEquipoSeleccionado}
+                                        getItemValue={(opcion) => opcion.value}
+                                        getItemLabel={(opcion) => opcion.label}
                                     >
-                                        Quitar
-                                    </Boton>
+                                        <ComboboxInput placeholder="Buscar equipo para agregar..." showClear />
+                                        <ComboboxContent>
+                                            <ComboboxEmpty>No hay equipos disponibles.</ComboboxEmpty>
+                                            <ComboboxList<OpcionSelector>>
+                                                {(opcion) => (
+                                                    <ComboboxItem key={opcion.value} value={opcion.value}>
+                                                        {opcion.label}
+                                                    </ComboboxItem>
+                                                )}
+                                            </ComboboxList>
+                                        </ComboboxContent>
+                                    </Combobox>
                                 </div>
-                            ))}
+                                <Boton type="button" onClick={agregarEquipo} disabled={!equipoSeleccionado} className="h-9 px-3 text-xs font-semibold">
+                                    Agregar
+                                </Boton>
+                            </div>
+                            <div className="mt-3 space-y-2">
+                                {campos.equipos.length === 0 ? (
+                                    <p className="text-[11px] text-slate-400 dark:text-slate-500">Sin equipos añadidos.</p>
+                                ) : campos.equipos.map((equipo) => (
+                                    <div key={equipo.idHerramienta} className="flex items-start justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-100">{nombreEquipo(equipo.idHerramienta)}</p>
+                                            <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+
+                                                {equipo.bloqueado ? (
+                                                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                                        Ya registrado
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                        <Boton
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            title={equipo.bloqueado ? 'No se puede quitar un equipo ya registrado' : 'Quitar equipo'}
+                                            onClick={() => quitarEquipo(equipo.idHerramienta)}
+                                            disabled={equipo.bloqueado}
+                                            className="h-7 px-2 text-[11px]"
+                                        >
+                                            Quitar
+                                        </Boton>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )
+                )
+            }
 
 
 

@@ -68,12 +68,6 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
 
     useEffect(() => {
         void cargarCanastas();
-
-        const intervalo = setInterval(() => {
-            void cargarCanastas(true);
-        }, 5000);
-
-        return () => clearInterval(intervalo);
     }, []);
 
     const obtenerTextoEstudiantes = useCallback((canasta: PrestamoCanastaRegistro) => {
@@ -275,6 +269,8 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
             alertas={vencidosCount}
             onNavegar={onNavegar}
             onCerrarSesion={onCerrarSesion}
+            onRecargar={() => { void cargarCanastas(); void recargarDatos(); }}
+            recargando={cargandoCanastas || cargando}
         >
             <Tabs value={tabEstado} onValueChange={(val) => setTabEstado(val as EstadoPrestamo)}>
                 <TabsList className="flex flex-wrap gap-1 p-1 rounded-lg bg-slate-100/60 dark:bg-slate-800/40 w-full justify-start h-auto">

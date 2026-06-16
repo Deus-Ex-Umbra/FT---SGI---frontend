@@ -15,3 +15,11 @@ export interface ConfiguracionRegistroEstudiante {
 export interface ActualizarConfiguracionRegistroEstudiantePayload {
   habilitado: boolean;
 }
+
+export interface ConfiguracionRegistroDocente {
+  habilitado: boolean;
+}
+
+export interface ActualizarConfiguracionRegistroDocentePayload {
+  habilitado: boolean;
+}

@@ -16,9 +16,9 @@ import {
 import { useDashboardEstudiante } from '@/paginas/estudiante/use-dashboard-estudiante';
 
 export const ResumenEstudianteMovil = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
-    const { cargando, error, datos } = useDashboardEstudiante(onCerrarSesion);
+    const { cargando, error, datos, recargar } = useDashboardEstudiante(onCerrarSesion);
 
-    if (cargando) {
+    if (cargando && !datos) {
         return (
             <LayoutPagina paginaActiva="resumen" titulo="Mi Resumen" subtitulo="Cargando tus datos..." onNavegar={onNavegar} onCerrarSesion={onCerrarSesion}>
                 <div className="flex h-40 items-center justify-center">
@@ -30,7 +30,7 @@ export const ResumenEstudianteMovil = ({ onNavegar, onCerrarSesion }: PropsPagin
 
     if (error || !datos) {
         return (
-            <LayoutPagina paginaActiva="resumen" titulo="Mi Resumen" subtitulo="Información académica y de préstamos" onNavegar={onNavegar} onCerrarSesion={onCerrarSesion}>
+            <LayoutPagina paginaActiva="resumen" titulo="Mi Resumen" subtitulo="Información académica y de préstamos" onNavegar={onNavegar} onCerrarSesion={onCerrarSesion} onRecargar={recargar} recargando={cargando}>
                 <div className="rounded-xl border border-red-200 bg-red-50 p-6 dark:border-red-900/40 dark:bg-red-900/10">
                     <p className="text-sm font-medium text-red-800 dark:text-red-400">No se pudo cargar el resumen.</p>
                     <p className="mt-1 text-sm text-red-600 dark:text-red-300">{error}</p>
@@ -53,6 +53,8 @@ export const ResumenEstudianteMovil = ({ onNavegar, onCerrarSesion }: PropsPagin
             subtitulo="Consulta tus datos académicos, materias y préstamos"
             onNavegar={onNavegar}
             onCerrarSesion={onCerrarSesion}
+            onRecargar={recargar}
+            recargando={cargando}
         >
             <div className="space-y-5">
                 {perfil.carnetRetenido && (

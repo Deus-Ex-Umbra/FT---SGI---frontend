@@ -74,6 +74,8 @@ export interface CrearUsuarioDocentePayload {
   apellido: string;
   fechaNacimiento?: string;
   contrasena?: string;
+  carrerasIds?: number[];
+  carreraId?: number;
 }
 
 export interface ResultadoRestablecerContrasena {
@@ -91,12 +93,31 @@ export interface UrlFirmadaRegistroEstudiante {
   message?: string;
 }
 
+export interface UrlFirmadaRegistroDocente {
+  ok: boolean;
+  eid?: string;
+  exp?: number;
+  nonce?: string;
+  sig?: string;
+  message?: string;
+}
+
 export interface ResultadoRegistroEstudiante {
   ok: boolean;
   message?: string;
 }
 
+export interface ResultadoRegistroDocente {
+  ok: boolean;
+  message?: string;
+}
+
 export interface ResultadoVerificacionRegistroEstudiante {
+  ok: boolean;
+  message?: string;
+}
+
+export interface ResultadoVerificacionRegistroDocente {
   ok: boolean;
   message?: string;
 }

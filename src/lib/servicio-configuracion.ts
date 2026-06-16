@@ -3,8 +3,10 @@ import { API_BASE_URL } from './api';
 import type {
   ActualizarConfiguracionIAPayload,
   ActualizarConfiguracionRegistroEstudiantePayload,
+  ActualizarConfiguracionRegistroDocentePayload,
   ConfiguracionIA,
   ConfiguracionRegistroEstudiante,
+  ConfiguracionRegistroDocente,
 } from '@/tipos/configuracion';
 
 
@@ -76,6 +78,44 @@ export const actualizarConfiguracionRegistroEstudiante = async (
     if (resp.status === 403) throw new Error('No tienes permisos para modificar esta configuración.');
     const txt = await resp.text();
     throw new Error(txt || 'No se pudo actualizar la configuración de registro de estudiantes.');
+  }
+  return resp.json();
+};
+
+export const obtenerConfiguracionRegistroDocente = async (): Promise<ConfiguracionRegistroDocente> => {
+  const token = obtenerToken();
+  if (!token) throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
+
+  const resp = await fetch(`${API_BASE_URL}/configuracion/registro-docente`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!resp.ok) {
+    if (resp.status === 401) throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
+    if (resp.status === 403) throw new Error('No tienes permisos para ver esta configuración.');
+    throw new Error('No se pudo cargar la configuración de registro de docentes.');
+  }
+  return resp.json();
+};
+
+export const actualizarConfiguracionRegistroDocente = async (
+  payload: ActualizarConfiguracionRegistroDocentePayload,
+): Promise<ConfiguracionRegistroDocente> => {
+  const token = obtenerToken();
+  if (!token) throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
+
+  const resp = await fetch(`${API_BASE_URL}/configuracion/registro-docente`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) {
+    if (resp.status === 401) throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
+    if (resp.status === 403) throw new Error('No tienes permisos para modificar esta configuración.');
+    const txt = await resp.text();
+    throw new Error(txt || 'No se pudo actualizar la configuración de registro de docentes.');
   }
   return resp.json();
 };

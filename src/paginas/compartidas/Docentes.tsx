@@ -7,8 +7,13 @@ import { TablaDocentes } from '@/componentes/paginas/inventario/tabla-docentes';
 import { useInventario } from '@/contextos/ContextoInventario';
 import { useConfirmacion } from '@/contextos/ContextoConfirmacion';
 import { useAccionSegura } from '@/hooks/use-accion-segura';
-import { Copy, GraduationCap, Plus, Trash2, ArrowLeft, Settings, Users, BookMarked, SendHorizonal, Clock, X } from 'lucide-react';
+import { Copy, GraduationCap, Plus, Trash2, ArrowLeft, Settings, Users, BookMarked, SendHorizonal, Clock, X, Check, ClipboardList } from 'lucide-react';
 import { obtenerUsuarioActual } from '@/lib/servicio-autenticacion';
+import {
+    cargarSolicitudesPendientesDocentes,
+    aprobarDocenteEnBackend,
+    rechazarDocenteEnBackend,
+} from '@/lib/servicio-docentes';
 import { Boton } from '@/componentes/ui/button';
 import { Skeleton } from '@/componentes/ui/skeleton';
 import { ModalBase } from '@/componentes/paginas/inventario/modal-base';
@@ -1501,9 +1506,57 @@ const DocentesDocente = ({ onNavegar, onCerrarSesion, vistaDocente = 'estudiante
 };
 
 const DocentesEncargado = ({ onNavegar, onCerrarSesion }: PropsPaginaDocentes) => {
-    const { docentes, prestamos, cargando } = useInventario();
+    const { docentes, prestamos, recargarDatos, cargando } = useInventario();
+    const [pestanaActiva, setPestanaActiva] = useState('activos');
     const [filtroNombre, setFiltroNombre] = useState('');
     const [filtroCarnet, setFiltroCarnet] = useState('');
+
+    const [solicitudes, setSolicitudes] = useState<any[]>([]);
+    const [cargandoSolicitudes, setCargandoSolicitudes] = useState(false);
+
+    const cargarSolicitudes = async () => {
+        setCargandoSolicitudes(true);
+        try {
+            const data = await cargarSolicitudesPendientesDocentes();
+            setSolicitudes(data);
+        } catch (err: any) {
+            toast.error(err?.message ?? 'Error al cargar solicitudes de docentes.');
+        } finally {
+            setCargandoSolicitudes(false);
+        }
+    };
+
+    useEffect(() => {
+        void cargarSolicitudes();
+    }, []);
+
+    useEffect(() => {
+        if (pestanaActiva === 'solicitudes') {
+            void cargarSolicitudes();
+        }
+    }, [pestanaActiva]);
+
+    const handleAprobar = async (id: string, nombreCompleto: string) => {
+        try {
+            await aprobarDocenteEnBackend(id);
+            toast.success(`Docente ${nombreCompleto} aprobado correctamente.`);
+            await cargarSolicitudes();
+            if (recargarDatos) await recargarDatos();
+        } catch (err: any) {
+            toast.error(err?.message ?? 'No se pudo aprobar al docente.');
+        }
+    };
+
+    const handleRechazar = async (id: string, nombreCompleto: string) => {
+        try {
+            await rechazarDocenteEnBackend(id);
+            toast.success(`Solicitud de ${nombreCompleto} rechazada.`);
+            await cargarSolicitudes();
+            if (recargarDatos) await recargarDatos();
+        } catch (err: any) {
+            toast.error(err?.message ?? 'No se pudo rechazar al docente.');
+        }
+    };
 
     const docentesFiltradosPorRol = useMemo(() => {
         return docentes.filter((docente) => {
@@ -1531,49 +1584,149 @@ const DocentesEncargado = ({ onNavegar, onCerrarSesion }: PropsPaginaDocentes) =
     return (
         <LayoutPagina
             paginaActiva="docentes"
-            titulo="Docentes"
-            subtitulo={cargando ? 'Cargando docentes...' : `${docentesFiltradosPorRol.length} docentes relacionados a préstamos`}
+            titulo="Docentes y Solicitudes"
+            subtitulo={cargando ? 'Cargando...' : 'Administración de docentes y solicitudes de registro'}
             onNavegar={onNavegar}
             onCerrarSesion={onCerrarSesion}
+            onRecargar={() => { if (recargarDatos) void recargarDatos(); void cargarSolicitudes(); }}
+            recargando={cargando || cargandoSolicitudes}
         >
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                    <Input
-                        placeholder="Nombre..."
-                        value={filtroNombre}
-                        onChange={(e) => setFiltroNombre(e.target.value)}
-                        className="h-8 max-w-[200px] text-xs bg-white dark:bg-slate-900"
-                    />
-                    <Input
-                        placeholder="Carnet..."
-                        value={filtroCarnet}
-                        onChange={(e) => setFiltroCarnet(e.target.value)}
-                        className="h-8 max-w-[150px] text-xs bg-white dark:bg-slate-900"
-                    />
-                    {(filtroNombre || filtroCarnet) && (
-                        <button
-                            onClick={() => {
-                                setFiltroNombre('');
-                                setFiltroCarnet('');
-                            }}
-                            className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                        >
-                            Limpiar
-                        </button>
-                    )}
-                    <span className="text-xs text-slate-400">
-                        {docentesFiltrados.length} de {docentesFiltradosPorRol.length}
-                    </span>
-                </div>
-            </div>
+            <Tabs value={pestanaActiva} onValueChange={setPestanaActiva} className="space-y-4">
+                <TabsList className="flex gap-1.5 p-1 rounded-xl bg-slate-100/65 dark:bg-slate-800/40 justify-start h-auto w-fit">
+                    <TabsTrigger value="activos" className="gap-2 text-xs font-semibold px-4 py-2 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 transition-all">
+                        <Users className="h-3.5 w-3.5 text-indigo-500" />
+                        Docentes ({docentesFiltradosPorRol.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="solicitudes" className="gap-2 text-xs font-semibold px-4 py-2 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-955 transition-all">
+                        <ClipboardList className="h-3.5 w-3.5 text-amber-500" />
+                        Solicitudes de Registro ({solicitudes.length})
+                    </TabsTrigger>
+                </TabsList>
 
-            <TablaDocentes
-                docentes={docentesFiltrados}
-                onEditar={() => {}}
-                onEliminar={() => {}}
-                puedeAdministrar={false}
-                cargando={cargando}
-            />
+                <TabsContent value="activos" className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                            <Input
+                                placeholder="Nombre..."
+                                value={filtroNombre}
+                                onChange={(e) => setFiltroNombre(e.target.value)}
+                                className="h-8 max-w-[200px] text-xs bg-white dark:bg-slate-900"
+                            />
+                            <Input
+                                placeholder="Carnet..."
+                                value={filtroCarnet}
+                                onChange={(e) => setFiltroCarnet(e.target.value)}
+                                className="h-8 max-w-[150px] text-xs bg-white dark:bg-slate-900"
+                            />
+                            {(filtroNombre || filtroCarnet) && (
+                                <button
+                                    onClick={() => {
+                                        setFiltroNombre('');
+                                        setFiltroCarnet('');
+                                    }}
+                                    className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                >
+                                    Limpiar
+                                </button>
+                            )}
+                            <span className="text-xs text-slate-400">
+                                {docentesFiltrados.length} de {docentesFiltradosPorRol.length}
+                            </span>
+                        </div>
+                    </div>
+
+                    <TablaDocentes
+                        docentes={docentesFiltrados}
+                        onEditar={() => {}}
+                        onEliminar={() => {}}
+                        puedeAdministrar={false}
+                        cargando={cargando}
+                    />
+                </TabsContent>
+
+                <TabsContent value="solicitudes" className="space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                                <ClipboardList className="h-4 w-4 text-amber-500" />
+                                Validar datos de solicitudes de acceso de docentes
+                            </h3>
+                            <button
+                                onClick={cargarSolicitudes}
+                                disabled={cargandoSolicitudes}
+                                className="text-xs text-indigo-500 hover:text-indigo-600 font-semibold"
+                            >
+                                Refrescar
+                            </button>
+                        </div>
+
+                        {cargandoSolicitudes ? (
+                            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                                <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-500 border-t-transparent mb-2"></div>
+                                <span>Cargando solicitudes pendientes...</span>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto rounded-lg border border-slate-150 dark:border-slate-800">
+                                <table className="w-full text-xs text-left">
+                                    <thead>
+                                        <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50">
+                                            <th className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-350">Nombre / Apellido</th>
+                                            <th className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-350">C.I.</th>
+                                            <th className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-350">Código Docente</th>
+                                            <th className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-350">Carrera(s)</th>
+                                            <th className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-350">Correo</th>
+                                            <th className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-350">Fecha Nac.</th>
+                                            <th className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-350 text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                        {solicitudes.map((sol) => (
+                                            <tr key={sol.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                                                <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{sol.nombre} {sol.apellido}</td>
+                                                <td className="px-4 py-3 text-slate-700 dark:text-slate-300 font-mono">{sol.carnet}</td>
+                                                <td className="px-4 py-3 text-slate-700 dark:text-slate-300 font-mono">{sol.codigo || '—'}</td>
+                                                <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                                                    {sol.carreras?.map((c: any) => c.nombre).join(', ') || '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{sol.correo}</td>
+                                                <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{sol.fechaNacimiento || '—'}</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <button
+                                                            onClick={() => handleAprobar(sol.id, `${sol.nombre} ${sol.apellido}`)}
+                                                            className="inline-flex items-center justify-center gap-1 rounded-md bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-2 py-1 transition-all shadow-sm hover:shadow"
+                                                            title="Aprobar registro de docente"
+                                                        >
+                                                            <Check className="h-3.5 w-3.5" />
+                                                            <span>Aprobar</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleRechazar(sol.id, `${sol.nombre} ${sol.apellido}`)}
+                                                            className="inline-flex items-center justify-center gap-1 rounded-md border border-red-200 hover:bg-red-50 hover:text-red-600 text-red-500 font-medium px-2 py-1 transition-all dark:border-red-900 dark:hover:bg-red-955/20"
+                                                            title="Rechazar solicitud"
+                                                        >
+                                                            <X className="h-3.5 w-3.5" />
+                                                            <span>Rechazar</span>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+
+                                        {solicitudes.length === 0 && (
+                                            <tr>
+                                                <td colSpan={7} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500 italic">
+                                                    No hay solicitudes de registro pendientes.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </TabsContent>
+            </Tabs>
         </LayoutPagina>
     );
 };

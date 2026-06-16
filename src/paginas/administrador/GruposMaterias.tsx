@@ -123,7 +123,6 @@ export const GruposMaterias = ({ onNavegar, onCerrarSesion, permiteCrearAdmin = 
         void cargarGrupos();
 
         const refrescar = () => { void cargarGrupos(true); };
-        const intervalo = window.setInterval(refrescar, 5000);
         const onFocus = () => refrescar();
         const onVisibilityChange = () => {
             if (document.visibilityState === 'visible') refrescar();
@@ -133,7 +132,6 @@ export const GruposMaterias = ({ onNavegar, onCerrarSesion, permiteCrearAdmin = 
         document.addEventListener('visibilitychange', onVisibilityChange);
 
         return () => {
-            window.clearInterval(intervalo);
             window.removeEventListener('focus', onFocus);
             document.removeEventListener('visibilitychange', onVisibilityChange);
         };
@@ -478,6 +476,8 @@ export const GruposMaterias = ({ onNavegar, onCerrarSesion, permiteCrearAdmin = 
             subtitulo="Administra solicitudes, aprobaciones y datos de grupos"
             onNavegar={onNavegar}
             onCerrarSesion={onCerrarSesion}
+            onRecargar={() => void cargarGrupos()}
+            recargando={cargando}
         >
             <Tabs value={tabActiva} onValueChange={(v) => setTabActiva(v as any)} className="w-full">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4 pb-1">
