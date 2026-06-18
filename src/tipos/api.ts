@@ -22,6 +22,11 @@ export interface ActivoFijoApi {
         estadoFisico?: string;
         observaciones?: string;
         precio?: number;
+        contenedor?: {
+            id: string | number;
+            nombre: string;
+            ubicacion: string;
+        } | null;
     }>;
 }
 

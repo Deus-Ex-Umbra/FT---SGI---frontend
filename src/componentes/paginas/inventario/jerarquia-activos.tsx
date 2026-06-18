@@ -142,7 +142,6 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
                     campos: [
                         { key: 'codigoUnico', label: 'Código único (serie)', value: input.sub.codigoUnico || '' },
                         { key: 'codigoInventario', label: 'Código inventario', value: input.sub.codigoInventario || '', required: false },
-                        { key: 'fechaCreacion', label: 'Fecha de creación', value: input.sub.fechaEntrega || '', type: 'datetime-local', required: false },
                         { key: 'estado', label: 'Estado operacional', value: estadoActual, type: 'select', options: opcionesEstado },
                         {
                             key: 'fechaRetiro',
@@ -204,7 +203,6 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
                     campos: [
                         { key: 'codigoUnico', label: 'Código único (serie)', value: input.sub.codigoUnico || '' },
                         { key: 'codigoInventario', label: 'Código inventario', value: input.sub.codigoInventario || '', required: false },
-                        { key: 'fechaCreacion', label: 'Fecha de creación', value: input.sub.fechaEntrega || '', type: 'datetime-local', required: false },
                         { key: 'estado', label: 'Estado operacional', value: estadoOriginal, type: 'select', options: [{ value: estadoOriginal, label: `Actual: ${etiquetaEstadoItem(estadoOriginal)}` }] },
                         {
                             key: 'fechaRetiro',
@@ -308,7 +306,7 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
                             await agregarSubinstanciaActivo(modal.idCon!, modal.idInst!, {
                                 codigoUnico: String(valores.codigoUnico ?? '').trim(),
                                 codigoInventario: String(valores.codigoInventario ?? '').trim(),
-                                fechaEntrega: valores.fechaCreacion || ahoraInputLocal(),
+                                fechaEntrega: ahoraInputLocal(),
                                 fechaRetiro: undefined,
                                 estado: 'disponible',
                                 estadoFisico: 'bueno',
@@ -328,7 +326,7 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
                             await agregarSubinstanciaActivo(modal.idCon!, idActivo, {
                                 codigoUnico: String(valores.codigoUnico ?? '').trim(),
                                 codigoInventario: String(valores.codigoInventario ?? '').trim(),
-                                fechaEntrega: valores.fechaCreacion || ahoraInputLocal(),
+                                fechaEntrega: ahoraInputLocal(),
                                 fechaRetiro: undefined,
                                 estado: 'disponible',
                                 estadoFisico: 'bueno',
@@ -372,7 +370,6 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
                             await editarSubinstanciaActivo(modal.idCon!, modal.idInst!, modal.idSub!, {
                                 codigoUnico: String(valores.codigoUnico ?? '').trim(),
                                 codigoInventario: String(valores.codigoInventario ?? '').trim(),
-                                fechaEntrega: valores.fechaCreacion || undefined,
                                 fechaRetiro: requiereFechaRetiro ? fechaRetiroValor : undefined,
                                 estado: estadoParaEnviar as any,
                                 estadoFisico: estadoFisicoParaEnviar as any,
@@ -445,7 +442,6 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
                             <thead className="bg-slate-50 dark:bg-slate-800/80 text-xs uppercase text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 font-semibold tracking-wider">
                                 <tr>
                                     <th className="px-4 py-3">Tipo / modelo</th>
-                                    <th className="px-4 py-3">Contenedor</th>
                                     <th className="px-4 py-3 text-center min-w-[90px]">Ítems</th>
                                     <th className="px-4 py-3 text-right min-w-[160px]">Valor total (Bs)</th>
                                     <th className="px-4 py-3 text-center min-w-[160px]">Acciones</th>
@@ -473,12 +469,6 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
                                                             <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">{h.categoria || 'Sin categoría'}</span>
                                                         </div>
                                                     </button>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-tight">{c.nombre}</span>
-                                                        <span className="text-[11px] text-slate-400 leading-tight">{c.descripcion || 'Sin descripción'}</span>
-                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
                                                     <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 inline-flex min-w-[3.5rem] justify-center">
@@ -547,9 +537,8 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
                                                                     props: {
                                                                         titulo: 'Crear item',
                                                                         campos: [
-                                                                            { key: 'codigoUnico', label: 'Código único (serie)', value: '' },
-                                                                          { key: 'codigoInventario', label: 'Código de inventario', value: '', required: false },
-                                                                            { key: 'fechaCreacion', label: 'Fecha de creación', value: ahoraInputLocal(), type: 'datetime-local', required: false },
+                                                                            { key: 'codigoUnico', label: 'Código único (serie)', value: '', required: false },
+                                                                            { key: 'codigoInventario', label: 'Código de inventario', value: '', required: false },
                                                                             { key: 'ubicacion', label: 'Ubicación', value: c.nombre, type: 'combobox', options: opcionesUbicacion, required: false },
                                                                             { key: 'ue', label: 'U.E.', value: '' },
                                                                             { key: 'descripcion', label: 'Descripción', value: '', type: 'textarea', required: false, rows: 4 },
@@ -568,14 +557,14 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
 
                                             {expandida && (
                                                 <tr className="bg-slate-50/50 dark:bg-slate-900/50">
-                                                    <td colSpan={5} className="px-4 py-3">
+                                                    <td colSpan={4} className="px-4 py-3">
                                                         <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                                                             <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300 border-collapse">
                                                                 <thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] uppercase text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 font-semibold tracking-wider">
                                                                     <tr>
                                                                         <th className="px-3 py-2 min-w-[120px]">Inventario</th>
                                                                         <th className="px-3 py-2 min-w-[140px]">Único</th>
-                                                                        <th className="px-3 py-2 min-w-[160px]">Fecha creación</th>
+                                                                        <th className="px-3 py-2 min-w-[140px]">Contenedor</th>
                                                                         <th className="px-3 py-2 min-w-[100px]">U.E.</th>
                                                                         <th className="px-3 py-2 min-w-[150px]">Estado operacional</th>
                                                                         <th className="px-3 py-2 min-w-[110px]">Estado físico</th>
@@ -586,8 +575,6 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
                                                                 </thead>
                                                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                                                                     {h.subinstancias.map((sub) => {
-                                                                        const fechaMostrar = (sub.fechaEntrega || '').replace('T', ' ').slice(0, 16);
-
                                                                         return (
                                                                             <tr key={sub.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                                                                                 <td className="px-3 py-2">
@@ -600,8 +587,8 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
                                                                                         {sub.codigoUnico || '—'}
                                                                                     </span>
                                                                                 </td>
-                                                                                <td className="px-3 py-2 text-[11px] text-slate-500 dark:text-slate-400">
-                                                                                    {fechaMostrar || '—'}
+                                                                                <td className="px-3 py-2 text-[11px] text-slate-700 dark:text-slate-300">
+                                                                                    {sub.contenedor?.nombre || sub.ubicacion || '—'}
                                                                                 </td>
                                                                                 <td className="px-3 py-2">
                                                                                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
@@ -811,7 +798,7 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
 
                                 {filasTabla.length === 0 && (
                                     <FilaTablaVaciaUi
-                                        colSpan={5}
+                                        colSpan={4}
                                         mensaje="No hay tipos de activo para mostrar."
                                         className="bg-slate-50 py-10 text-sm dark:bg-slate-800/30"
                                     />
@@ -921,7 +908,6 @@ export const JerarquiaActivos = ({ contenedores, onNavegar: _onNavegar, onVistaC
                                                                         },
                                                                         { key: 'codigoUnico', label: 'Código único (serie)', value: '', required: false },
                                                                         { key: 'codigoInventario', label: 'Código de inventario', value: '', required: false },
-                                                                        { key: 'fechaCreacion', label: 'Fecha de creación', value: ahoraInputLocal(), type: 'datetime-local', required: false },
                                                                         { key: 'ue', label: 'U.E.', value: '' },
                                                                         { key: 'descripcion', label: 'Descripción', value: '', type: 'textarea', required: false, rows: 4 },
                                                                         { key: 'precio', label: 'Precio (Bs.)', value: '0', type: 'number' },

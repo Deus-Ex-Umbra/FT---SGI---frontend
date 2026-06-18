@@ -8,7 +8,7 @@ import type {
     EditarItemActivoApi,
     ContenedorCompartidoApi
 } from '@/tipos/api';
-import type { ContenedorHerramientas, Herramienta, SubinstanciaHerramienta, ContenedorMateriales, MaterialFungible, SubinstanciaMaterial } from '@/tipos/inventario';
+import type { ContenedorHerramientas, SubinstanciaHerramienta, ContenedorMateriales, MaterialFungible, SubinstanciaMaterial } from '@/tipos/inventario';
 
 const API_BASE = API_BASE_URL;
 
@@ -31,11 +31,7 @@ export const cargarActivosDesdeBackend = async (): Promise<ContenedorHerramienta
 
     const porContenedor = new Map<string, ContenedorHerramientas>();
 
-    fijos.forEach((fijo) => {
-        const idCont = String(fijo.contenedor?.id ?? '0');
-        const nombreCont = fijo.contenedor?.nombre ?? 'Sin contenedor';
-        const ubicacionCont = fijo.contenedor?.ubicacion ?? 'N/D';
-
+    const asegurarContenedor = (idCont: string, nombreCont: string, ubicacionCont: string) => {
         if (!porContenedor.has(idCont)) {
             porContenedor.set(idCont, {
                 id: idCont,
@@ -45,32 +41,74 @@ export const cargarActivosDesdeBackend = async (): Promise<ContenedorHerramienta
                 herramientas: [],
             });
         }
+        return porContenedor.get(idCont)!;
+    };
 
-        const subinstancias: SubinstanciaHerramienta[] = (fijo.items ?? []).map((item) => ({
-            id: String(item.id),
-            codigoInventario: item.codigoInventario ?? undefined,
-            codigoUnico: item.codigoUnico ?? undefined,
-            ubicacion: item.ubicacion ?? undefined,
-            ue: item.ue ?? undefined,
-            descripcion: item.descripcion ?? undefined,
-            estadoFisico: normalizarEstadoFisicoItem(item.estadoFisico) ?? 'bueno',
-            fechaEntrega: soloFecha(item.fechaEntrega),
-            fechaRetiro: soloFecha(item.fechaRetiro),
-            estado: (item.estado as SubinstanciaHerramienta['estado']) || 'disponible',
-            observaciones: item.observaciones ?? '',
-            precio: Number(item.precio ?? 0),
-        }));
+    fijos.forEach((fijo) => {
+        const items = fijo.items ?? [];
+        if (items.length === 0) {
+            const cont = asegurarContenedor('0', 'Sin contenedor', 'N/D');
+            cont.herramientas.push({
+                id: String(fijo.id),
+                nombre: fijo.nombre,
+                categoria: fijo.categoria ?? 'General',
+                descripcion: fijo.descripcion ?? '',
+                subinstancias: [],
+                idInventario: fijo.idInventario,
+            });
+            return;
+        }
 
-        const herramienta: Herramienta = {
-            id: String(fijo.id),
-            nombre: fijo.nombre,
-            categoria: fijo.categoria ?? 'General',
-            descripcion: fijo.descripcion ?? '',
-            subinstancias,
-            idInventario: fijo.idInventario,
-        };
+        const itemsPorContenedor = new Map<string, {
+            idCont: string;
+            nombreCont: string;
+            ubicacionCont: string;
+            items: typeof items;
+        }>();
 
-        porContenedor.get(idCont)?.herramientas.push(herramienta);
+        items.forEach((item) => {
+            const idCont = String(item.contenedor?.id ?? '0');
+            const nombreCont = item.contenedor?.nombre ?? 'Sin contenedor';
+            const ubicacionCont = item.contenedor?.ubicacion ?? 'N/D';
+
+            if (!itemsPorContenedor.has(idCont)) {
+                itemsPorContenedor.set(idCont, { idCont, nombreCont, ubicacionCont, items: [] });
+            }
+            itemsPorContenedor.get(idCont)!.items.push(item);
+        });
+
+        itemsPorContenedor.forEach((grupo) => {
+            const cont = asegurarContenedor(grupo.idCont, grupo.nombreCont, grupo.ubicacionCont);
+
+            const subinstancias: SubinstanciaHerramienta[] = grupo.items.map((item) => ({
+                id: String(item.id),
+                codigoInventario: item.codigoInventario ?? undefined,
+                codigoUnico: item.codigoUnico ?? undefined,
+                ubicacion: item.ubicacion ?? undefined,
+                ue: item.ue ?? undefined,
+                descripcion: item.descripcion ?? undefined,
+                estadoFisico: normalizarEstadoFisicoItem(item.estadoFisico) ?? 'bueno',
+                fechaEntrega: soloFecha(item.fechaEntrega),
+                fechaRetiro: soloFecha(item.fechaRetiro),
+                estado: (item.estado as SubinstanciaHerramienta['estado']) || 'disponible',
+                observaciones: item.observaciones ?? '',
+                precio: Number(item.precio ?? 0),
+                contenedor: item.contenedor ? {
+                    id: String(item.contenedor.id),
+                    nombre: item.contenedor.nombre,
+                    ubicacion: item.contenedor.ubicacion,
+                } : null,
+            }));
+
+            cont.herramientas.push({
+                id: String(fijo.id),
+                nombre: fijo.nombre,
+                categoria: fijo.categoria ?? 'General',
+                descripcion: fijo.descripcion ?? '',
+                subinstancias,
+                idInventario: fijo.idInventario,
+            });
+        });
     });
 
     return Array.from(porContenedor.values());

@@ -25,6 +25,11 @@ export interface SubinstanciaHerramienta {
     ue?: string;
     descripcion?: string;
     precio?: number;
+    contenedor?: {
+        id: string | number;
+        nombre: string;
+        ubicacion: string;
+    } | null;
 }
 
 export interface Herramienta {

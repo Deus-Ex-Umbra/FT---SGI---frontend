@@ -114,7 +114,6 @@ export const JerarquiaMaterialFungible = ({ contenedores, onVistaChange }: Props
                                 tipo,
                                 lote: tipo === 'lote' ? String(valores.lote ?? '').trim() : null,
                                 serie: tipo === 'serie' ? String(valores.serie ?? '').trim() : null,
-                                fechaEntrega: valores.fechaEntrada || undefined,
                                 fechaRetiro: undefined,
                                 cantidadDisponible: parseInt(valores.cantidad) || 0,
                                 fechaCaducidad: valores.caducidad || undefined,
@@ -132,7 +131,6 @@ export const JerarquiaMaterialFungible = ({ contenedores, onVistaChange }: Props
                                 tipo,
                                 lote: tipo === 'lote' ? String(valores.lote ?? '').trim() : null,
                                 serie: tipo === 'serie' ? String(valores.serie ?? '').trim() : null,
-                                fechaEntrega: valores.fechaEntrada || undefined,
                                 fechaRetiro: undefined,
                                 cantidadDisponible: parseInt(valores.cantidad) || 0,
                                 fechaCaducidad: valores.caducidad || undefined,
@@ -146,7 +144,6 @@ export const JerarquiaMaterialFungible = ({ contenedores, onVistaChange }: Props
                                 tipo,
                                 lote: tipo === 'lote' ? String(valores.lote ?? '').trim() : null,
                                 serie: tipo === 'serie' ? String(valores.serie ?? '').trim() : null,
-                                fechaEntrega: valores.fechaEntrada || undefined,
                                 fechaRetiro: modal.props?.fechaRetiroOriginal || undefined,
                                 cantidadDisponible: parseInt(valores.cantidad) || 0,
                                 fechaCaducidad: valores.caducidad || undefined,
@@ -353,13 +350,6 @@ export const JerarquiaMaterialFungible = ({ contenedores, onVistaChange }: Props
                                                                                 requiredWhen: (v: any) => v.tipo === 'serie',
                                                                                 visibleWhen: (v: any) => v.tipo === 'serie',
                                                                             },
-                                                                            {
-                                                                                key: 'fechaEntrada',
-                                                                                label: 'Fecha de compra/entrada',
-                                                                                value: '',
-                                                                                type: 'date',
-                                                                                required: false,
-                                                                            },
                                                                             { key: 'cantidad', label: 'Cantidad', value: '0', type: 'number' },
                                                                             {
                                                                                 key: 'precio',
@@ -388,13 +378,12 @@ export const JerarquiaMaterialFungible = ({ contenedores, onVistaChange }: Props
 
                                             {expanded && (
                                                 <tr key={`${rowKey}__sub`}>
-                                                    <td colSpan={5} className="px-4 pb-4">
+                                                    <td colSpan={4} className="px-4 pb-4">
                                                         <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
                                                             <table className="w-full text-left text-xs">
                                                                 <thead className="bg-slate-50 dark:bg-slate-800/70">
                                                                     <tr>
                                                                         <th className="px-3 py-2">Item</th>
-                                                                        <th className="px-3 py-2">Fecha entrada</th>
                                                                         <th className="px-3 py-2 text-right">Cantidad</th>
                                                                         <th className="px-3 py-2 text-right">Precio (Bs)</th>
                                                                         <th className="px-3 py-2">Caducidad</th>
@@ -409,7 +398,6 @@ export const JerarquiaMaterialFungible = ({ contenedores, onVistaChange }: Props
                                                                                     {codigoVisible(sub)}
                                                                                 </span>
                                                                             </td>
-                                                                            <td className="px-3 py-2 text-slate-500">{sub.fechaEntrega || '-'}</td>
                                                                             <td className="px-3 py-2 text-right font-semibold">
                                                                                 {sub.cantidadDisponible} {m.unidad}
                                                                             </td>
@@ -464,13 +452,6 @@ export const JerarquiaMaterialFungible = ({ contenedores, onVistaChange }: Props
                                                                                                             visibleWhen: (v: any) => v.tipo === 'serie',
                                                                                                         },
                                                                                                         {
-                                                                                                            key: 'fechaEntrada',
-                                                                                                            label: 'Fecha de compra/entrada',
-                                                                                                            value: sub.fechaEntrega || '',
-                                                                                                            type: 'date',
-                                                                                                            required: false,
-                                                                                                        },
-                                                                                                        {
                                                                                                             key: 'cantidad',
                                                                                                             label: 'Cantidad',
                                                                                                             value: String(sub.cantidadDisponible),
@@ -521,7 +502,7 @@ export const JerarquiaMaterialFungible = ({ contenedores, onVistaChange }: Props
 
                                                                     {m.subinstancias.length === 0 && (
                                                                         <tr>
-                                                                            <td colSpan={6} className="px-3 py-4 text-center text-slate-500">
+                                                                            <td colSpan={5} className="px-3 py-4 text-center text-slate-500">
                                                                                 Sin items registrados.
                                                                             </td>
                                                                         </tr>
@@ -643,13 +624,6 @@ export const JerarquiaMaterialFungible = ({ contenedores, onVistaChange }: Props
                                                                     requiredWhen: (v: any) => v.tipo === 'serie',
                                                                     visibleWhen: (v: any) => v.tipo === 'serie',
                                                                 },
-                                                                {
-                                                                    key: 'fechaEntrada',
-                                                                    label: 'Fecha de compra/entrada',
-                                                                    value: '',
-                                                                    type: 'date',
-                                                                    required: false,
-                                                                },
                                                                 { key: 'cantidad', label: 'Cantidad', value: '0', type: 'number' },
                                                                 {
                                                                     key: 'precio',
@@ -754,13 +728,6 @@ export const JerarquiaMaterialFungible = ({ contenedores, onVistaChange }: Props
                                                                                             visibleWhen: (v: any) => v.tipo === 'serie',
                                                                                         },
                                                                                         {
-                                                                                            key: 'fechaEntrada',
-                                                                                            label: 'Fecha de compra/entrada',
-                                                                                            value: sub.fechaEntrega || '',
-                                                                                            type: 'date',
-                                                                                            required: false,
-                                                                                        },
-                                                                                        {
                                                                                             key: 'cantidad',
                                                                                             label: 'Cantidad',
                                                                                             value: String(sub.cantidadDisponible),
@@ -809,11 +776,6 @@ export const JerarquiaMaterialFungible = ({ contenedores, onVistaChange }: Props
 
                                                             <div className="flex items-center justify-between mt-1.5 pt-2 border-t border-slate-100 dark:border-slate-700/50">
                                                                 <div className="flex items-center gap-3">
-                                                                    {sub.fechaEntrega ? (
-                                                                        <span className="text-[10px] bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded font-medium">
-                                                                            Entrada: {sub.fechaEntrega}
-                                                                        </span>
-                                                                    ) : null}
                                                                     {sub.fechaCaducidad ? (
                                                                         <span className="text-[10px] bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded font-medium">
                                                                             Vence: {sub.fechaCaducidad}

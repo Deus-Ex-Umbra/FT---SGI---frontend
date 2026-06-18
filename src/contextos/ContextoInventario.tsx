@@ -102,7 +102,7 @@ interface ContextoInventarioTipo {
     eliminarContenedorCompartido: (datos: { id: string; idActivo?: number; idMaterial?: number }) => Promise<void>;
     agregarContenedorActivos: (datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => Promise<void>;
     editarContenedorActivos: (id: string, datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => Promise<void>;
-    agregarCajaActivo: (idContenedor: string, datos: Omit<Herramienta, 'id' | 'subinstancias'>) => Promise<void>;
+    agregarCajaActivo: (_idContenedor: string, datos: Omit<Herramienta, 'id' | 'subinstancias'>) => Promise<void>;
     editarInstanciaActivo: (idContenedor: string, idHerramienta: string, datos: Partial<Omit<Herramienta, 'id' | 'subinstancias'>>) => Promise<void>;
     eliminarInstanciaActivo: (idContenedor: string, idHerramienta: string) => Promise<void>;
     agregarSubinstanciaActivo: (idContenedor: string, idHerramienta: string, datos: Omit<SubinstanciaHerramienta, 'id'>) => Promise<void>;
@@ -483,25 +483,19 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
 
         setContenedoresHerramientas(prev => prev.map(c => c.id === id ? { ...c, ...datos, ubicacion: datos.descripcion } : c));
     };
-    const agregarCajaActivo = async (idContenedor: string, datos: Omit<Herramienta, 'id' | 'subinstancias'>) => {
+    const agregarCajaActivo = async (_idContenedor: string, datos: Omit<Herramienta, 'id' | 'subinstancias'>) => {
         const nombre = datos.nombre?.trim();
         if (!nombre) {
             throw new Error('El nombre del activo fijo es obligatorio.');
         }
 
-        if (esNumero(idContenedor)) {
-            await crearActivoFijoEnBackend({
-                nombre,
-                idContenedor: Number(idContenedor),
-                categoria: datos.categoria,
-                descripcion: datos.descripcion,
-            });
-            const activosBd = await cargarActivosDesdeBackend();
-            setContenedoresHerramientas(activosBd);
-            return;
-        }
-
-        throw new Error('El contenedor seleccionado para el activo fijo no es válido.');
+        await crearActivoFijoEnBackend({
+            nombre,
+            categoria: datos.categoria,
+            descripcion: datos.descripcion,
+        });
+        const activosBd = await cargarActivosDesdeBackend();
+        setContenedoresHerramientas(activosBd);
     };
     const esNumero = (valor: string) => /^\d+$/.test(valor);
     const esUuid = (valor: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(valor.trim());

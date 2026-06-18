@@ -15,7 +15,7 @@ import { construirUrlApi } from '@/lib/api';
 import { obtenerToken, obtenerUsuarioActual } from '@/lib/servicio-autenticacion';
 
 export const Activos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
-    const { contenedoresCompartidos, contenedoresHerramientas, agregarCajaActivo, cargando } = useInventario();
+    const { contenedoresHerramientas, agregarCajaActivo, cargando } = useInventario();
     const usuario = obtenerUsuarioActual();
     const puedeEditar = usuario?.rol === 'administrador' || (usuario?.rol === 'encargado_inventario' && usuario?.puedeEditarFijos);
     const [busqueda, setBusqueda] = useState('');
@@ -84,28 +84,11 @@ export const Activos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                     mensajeExito="Tipo de activo creado correctamente."
                     mensajeError="No se pudo crear el tipo de activo."
                     camposIniciales={[
-                        {
-                            key: 'idContenedor',
-                            label: 'Contenedor',
-                            value: '',
-                            type: 'combobox',
-                            options: [
-                                { value: '', label: 'Selecciona un contenedor' },
-                                ...contenedoresCompartidos
-                                    .filter((contenedor) => contenedor.idActivo != null)
-                                    .map((contenedor) => ({
-                                        value: String(contenedor.idActivo),
-                                        label: `${contenedor.nombre} · ${contenedor.descripcion || 'Sin descripción'}`,
-                                    }))
-                                    .sort((a, b) => a.label.localeCompare(b.label, 'es')),
-                            ],
-                        },
                         { key: 'nombre', label: 'Tipo o modelo del activo', value: '' },
                         { key: 'descripcion', label: 'Descripción breve', value: '', required: false },
                     ]}
                     onGuardar={async (valores) => {
-                        if (!valores.idContenedor) throw new Error('Selecciona un contenedor.');
-                        await agregarCajaActivo(valores.idContenedor, {
+                        await agregarCajaActivo('0', {
                             nombre: valores.nombre.trim(),
                             categoria: 'General',
                             descripcion: valores.descripcion.trim(),
