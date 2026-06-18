@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { InicioSesion, InscripcionMateria, RecuperarContrasena, RegistroEstudianteFirmado, RegistroDocenteFirmado, SubirSolicitudFirmada } from './paginas/publicas';
-import { renderizarPaginaPrivada } from './paginas/renderizador-por-rol';
+import { RenderizarPaginaPrivada } from './paginas/renderizador-por-rol';
 import { ProveedorInventario } from './contextos/ContextoInventario';
 import { ProveedorConfirmacion } from './contextos/ContextoConfirmacion';
 import { ProveedorDialogoEntrada } from './contextos/ContextoDialogoEntrada';
 import { Toaster } from './componentes/ui/sonner';
+import { Skeleton } from './componentes/ui/skeleton';
 import type { PaginaApp } from '@/tipos/navegacion';
 import {
   EVENTO_USUARIO_ACTUALIZADO,
@@ -49,6 +50,7 @@ function App() {
   const [tokenValido, setTokenValido] = useState<boolean>(() => !!localStorage.getItem('token_acceso'));
   const [prestamosVencidos, setPrestamosVencidos] = useState<PrestamoCanastaRegistro[]>([]);
   const [mostrarDialogoVencidos, setMostrarDialogoVencidos] = useState(false);
+  const [cargandoSesion, setCargandoSesion] = useState(false);
   const tema: Tema = 'mixto';
 
   const navigate = useNavigate();
@@ -228,16 +230,45 @@ function App() {
       navigate(`/${pag}`);
     },
     onCerrarSesion: () => {
-      cerrarSesionAuth();
-      localStorage.removeItem(CLAVE_PAGINA_ACTUAL);
-      sessionStorage.removeItem('sgi:dialogo-vencidos-mostrado');
-      setUsuarioActual(null);
-      setTokenValido(false);
-      navigate('/login', { replace: true });
+      setCargandoSesion(true);
+      setTimeout(() => {
+        cerrarSesionAuth();
+        localStorage.removeItem(CLAVE_PAGINA_ACTUAL);
+        sessionStorage.removeItem('sgi:dialogo-vencidos-mostrado');
+        setUsuarioActual(null);
+        setTokenValido(false);
+        navigate('/login', { replace: true });
+        setCargandoSesion(false);
+      }, 500);
     },
   };
 
   const propsConfiguracion = { ...propsPagina, temaActivo: tema, onCambiarTema: (_t: Tema) => {} };
+
+  if (cargandoSesion) {
+    return (
+      <div className="flex h-screen w-full flex-col bg-slate-50 dark:bg-slate-900 p-6 space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
+          <Skeleton className="h-8 w-48 bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          <div className="flex space-x-4">
+            <Skeleton className="h-8 w-24 bg-slate-200 dark:bg-slate-800 animate-pulse" />
+            <Skeleton className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          </div>
+        </div>
+        {/* Main Content Skeleton */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <Skeleton className="h-32 w-full rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          <Skeleton className="h-32 w-full rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          <Skeleton className="h-32 w-full rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <Skeleton className="h-[300px] w-full rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          <Skeleton className="h-[300px] w-full rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -250,9 +281,13 @@ function App() {
             ) : (
               <InicioSesion
                 onAcceso={(usuario) => {
-                  setUsuarioActual(usuario);
-                  setTokenValido(true);
-                  navigate(`/${obtenerPaginaInicioPorRol(usuario.rol)}`, { replace: true });
+                  setCargandoSesion(true);
+                  setTimeout(() => {
+                    setUsuarioActual(usuario);
+                    setTokenValido(true);
+                    navigate(`/${obtenerPaginaInicioPorRol(usuario.rol)}`, { replace: true });
+                    setCargandoSesion(false);
+                  }, 500);
                 }}
                 onRecuperar={() => navigate('/recuperar-contrasena')}
               />
@@ -299,12 +334,12 @@ function App() {
                 <ProveedorInventario key={location.pathname}>
                   <ProveedorConfirmacion>
                     <ProveedorDialogoEntrada>
-                      {renderizarPaginaPrivada({
-                        pagina: pag,
-                        rol: usuarioActual.rol,
-                        propsPagina,
-                        propsConfiguracion,
-                      })}
+                      <RenderizarPaginaPrivada
+                        pagina={pag}
+                        rol={usuarioActual.rol}
+                        propsPagina={propsPagina}
+                        propsConfiguracion={propsConfiguracion}
+                      />
                     </ProveedorDialogoEntrada>
                   </ProveedorConfirmacion>
                 </ProveedorInventario>

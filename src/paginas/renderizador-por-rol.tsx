@@ -122,7 +122,7 @@ interface RenderizadorPaginaPrivadaProps {
     propsConfiguracion: PropsPaginaConfiguracion;
 }
 
-export const renderizarPaginaPrivada = ({
+export const RenderizarPaginaPrivada = ({
     pagina,
     rol,
     propsPagina,
