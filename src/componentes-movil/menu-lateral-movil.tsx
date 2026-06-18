@@ -129,7 +129,7 @@ export function MenuLateralMovil({ paginaActiva, onNavegar, onCerrarSesion }: Pr
                                     key={id}
                                     variant={activo ? 'secondary' : 'ghost'}
                                     className={cn(
-                                        'w-full h-11 text-[13.5px] font-medium transition-all duration-200',
+                                        'w-full h-11 text-[15px] font-medium transition-all duration-200',
                                         colapsado ? 'justify-center px-0 rounded-lg' : 'justify-start gap-3 px-3',
                                         activo 
                                             ? 'bg-sidebar-accent text-sidebar-ring shadow-sm' 

@@ -529,8 +529,8 @@ export const Resumen = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                 : "No hay préstamos activos en este momento."}
                                 </p>
                             )}
-                            <button onClick={() => onNavegar('prestamos')} className="mt-4 rounded-md bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50">
-                                Ver préstamos
+                            <button onClick={() => onNavegar('prestamos')} className="mt-4 rounded-md bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50">
+                                Préstamos
                             </button>
                         </div>
                     </div>

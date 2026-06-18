@@ -197,11 +197,11 @@ export const Estudiantes = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
         >
             <Tabs value={pestanaActiva} onValueChange={setPestanaActiva} className="space-y-4">
                 <TabsList className="flex gap-1.5 p-1 rounded-xl bg-slate-100/65 dark:bg-slate-800/40 justify-start h-auto w-fit">
-                    <TabsTrigger value="activos" className="gap-2 text-xs font-semibold px-4 py-2 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 transition-all">
+                    <TabsTrigger value="activos" className="gap-2 text-sm font-semibold px-4 py-2 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 transition-all">
                         <Users className="h-3.5 w-3.5 text-indigo-500" />
                         Estudiantes ({estudiantesFiltradosPorRol.length})
                     </TabsTrigger>
-                    <TabsTrigger value="solicitudes" className="gap-2 text-xs font-semibold px-4 py-2 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-955 transition-all">
+                    <TabsTrigger value="solicitudes" className="gap-2 text-sm font-semibold px-4 py-2 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-955 transition-all">
                         <ClipboardList className="h-3.5 w-3.5 text-amber-500" />
                         Solicitudes de Registro ({solicitudes.length})
                     </TabsTrigger>

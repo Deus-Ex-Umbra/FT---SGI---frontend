@@ -161,10 +161,10 @@ export const ResumenEstudianteMovil = ({ onNavegar, onCerrarSesion }: PropsPagin
                             <Boton 
                                 type="button" 
                                 variant="outline" 
-                                className="mt-4 w-full text-xs font-semibold justify-between h-9 rounded-lg border-slate-200 dark:border-slate-800"
+                                className="mt-4 w-full text-sm font-semibold justify-between h-10 rounded-lg border-slate-200 dark:border-slate-800"
                                 onClick={() => onNavegar('mis-materias')}
                             >
-                                Gestionar mis materias
+                                Mis Materias
                                 <ArrowRight className="h-4 w-4" />
                             </Boton>
                         </div>
@@ -196,10 +196,10 @@ export const ResumenEstudianteMovil = ({ onNavegar, onCerrarSesion }: PropsPagin
                             <Boton 
                                 type="button" 
                                 variant="outline" 
-                                className="mt-4 w-full text-xs font-semibold justify-between h-9 rounded-lg border-slate-200 dark:border-slate-800"
+                                className="mt-4 w-full text-sm font-semibold justify-between h-10 rounded-lg border-slate-200 dark:border-slate-800"
                                 onClick={() => onNavegar('prestamos')}
                             >
-                                Ver mis préstamos
+                                Mis Préstamos
                                 <ArrowRight className="h-4 w-4" />
                             </Boton>
                         </div>

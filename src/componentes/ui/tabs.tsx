@@ -28,8 +28,8 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex items-center gap-2 pb-3 px-4",
-      "text-sm font-bold whitespace-nowrap",
+      "flex items-center gap-2 pb-3 px-5",
+      "text-[15px] font-bold whitespace-nowrap",
       "border-b-2 -mb-px",
       "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200",
       "data-[state=active]:border-blue-600 data-[state=active]:text-blue-600",

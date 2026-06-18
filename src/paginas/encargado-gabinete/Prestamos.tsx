@@ -425,31 +425,31 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
         >
             <Tabs value={tabDevoluciones} onValueChange={(value) => setTabDevoluciones(value as any)}>
                 <TabsList className="flex flex-wrap gap-1 p-1 rounded-lg bg-slate-100/60 dark:bg-slate-800/40 w-full justify-start h-auto animate-fade-in">
-                    <TabsTrigger value="solicitado" className="gap-1.5 text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                    <TabsTrigger value="solicitado" className="gap-1.5 text-sm font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
                         <Clock className="h-3.5 w-3.5 text-amber-500" />
                         Solicitudes Docente ({canastasSolicitadas.length})
                     </TabsTrigger>
-                    <TabsTrigger value="aceptado" className="gap-1.5 text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                    <TabsTrigger value="aceptado" className="gap-1.5 text-sm font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
                         <Check className="h-3.5 w-3.5 text-purple-500" />
                         Aceptado ({canastasPorDespachar.length})
                     </TabsTrigger>
-                    <TabsTrigger value="despachado" className="gap-1.5 text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                    <TabsTrigger value="despachado" className="gap-1.5 text-sm font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
                         <Play className="h-3.5 w-3.5 text-blue-500" />
                         Despachado ({canastasDespachadas.length})
                     </TabsTrigger>
-                    <TabsTrigger value="vencido" className="gap-1.5 text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                    <TabsTrigger value="vencido" className="gap-1.5 text-sm font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
                         <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
                         Vencido ({canastasVencidas.length})
                     </TabsTrigger>
-                    <TabsTrigger value="devuelto" className="gap-1.5 text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                    <TabsTrigger value="devuelto" className="gap-1.5 text-sm font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                         Devuelto ({canastasDevueltas.length})
                     </TabsTrigger>
-                    <TabsTrigger value="devuelto_fuera_de_fecha_limite" className="gap-1.5 text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                    <TabsTrigger value="devuelto_fuera_de_fecha_limite" className="gap-1.5 text-sm font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
                         <CalendarClock className="h-3.5 w-3.5 text-amber-600" />
                         Dev. Fuera de Plazo ({canastasDevueltasFueraPlazo.length})
                     </TabsTrigger>
-                    <TabsTrigger value="rechazado" className="gap-1.5 text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                    <TabsTrigger value="rechazado" className="gap-1.5 text-sm font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
                         <X className="h-3.5 w-3.5 text-red-500" />
                         Rechazado ({canastasRechazadas.length})
                     </TabsTrigger>

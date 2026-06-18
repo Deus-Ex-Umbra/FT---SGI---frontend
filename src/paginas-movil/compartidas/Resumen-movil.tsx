@@ -235,13 +235,13 @@ export const ResumenMovil = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => 
                         
                         <Tabs defaultValue="solicitados" className="w-full">
                             <TabsList className="grid grid-cols-3 w-full border-b dark:border-slate-800">
-                                <TabsTrigger value="solicitados" className="text-center py-2 text-xs">
+                                <TabsTrigger value="solicitados" className="text-center py-2 text-sm">
                                     Solicitados ({canastasDocenteSolicitadas.length})
                                 </TabsTrigger>
-                                <TabsTrigger value="despachados" className="text-center py-2 text-xs">
+                                <TabsTrigger value="despachados" className="text-center py-2 text-sm">
                                     Activos ({canastasDocenteDespachadas.length})
                                 </TabsTrigger>
-                                <TabsTrigger value="devueltos" className="text-center py-2 text-xs">
+                                <TabsTrigger value="devueltos" className="text-center py-2 text-sm">
                                     Devueltos ({canastasDocenteDevueltas.length})
                                 </TabsTrigger>
                             </TabsList>
