@@ -45,7 +45,7 @@ export const InicioSesion = ({ onAcceso, onRecuperar }: PropsPaginaInicioSesion)
                 <CardContent>
                     <form onSubmit={manejarEnvio} className="space-y-4">
                         <div className="flex flex-col items-center space-y-2 w-full">
-                            <Label htmlFor="usuario" className="text-sm font-medium">Correo o C.I. (Estudiantes)</Label>
+                            <Label htmlFor="usuario" className="text-sm font-medium">Correo Electrónico</Label>
                             <Input
                                 id="usuario"
                                 type="text"
