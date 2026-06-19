@@ -24,7 +24,7 @@ export const Contenedores = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => 
 
     const [modal, setModal] = useState<null | {
         modo: 'crear' | 'editar';
-        contenedor?: { id: string; nombre: string; descripcion: string; idActivo?: number; idMaterial?: number };
+        contenedor?: { id: string; nombre: string; descripcion: string; idActivo?: number; idMaterial?: number; visible?: boolean };
     }>(null);
     const [busqueda, setBusqueda] = useState('');
 

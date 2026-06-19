@@ -66,7 +66,7 @@ import { localToApiDateTime } from '@/utilidades/fechas';
 
 interface ContextoInventarioTipo {
     cargando: boolean;
-    contenedoresCompartidos: Array<{ id: string; nombre: string; descripcion: string; idActivo?: number; idMaterial?: number }>;
+    contenedoresCompartidos: Array<{ id: string; nombre: string; descripcion: string; idActivo?: number; idMaterial?: number; visible?: boolean }>;
     contenedoresHerramientas: ContenedorHerramientas[];
     contenedoresMateriales: ContenedorMateriales[];
     catalogoMaterialesFungibles: MaterialFungible[];
@@ -134,7 +134,7 @@ export const useInventario = () => {
 
 export const ProveedorInventario = ({ children }: { children: React.ReactNode }) => {
     const [cargando, setCargando] = useState<boolean>(true);
-    const [contenedoresCompartidos, setContenedoresCompartidos] = useState<Array<{ id: string; nombre: string; descripcion: string; idActivo?: number; idMaterial?: number }>>([]);
+    const [contenedoresCompartidos, setContenedoresCompartidos] = useState<Array<{ id: string; nombre: string; descripcion: string; idActivo?: number; idMaterial?: number; visible?: boolean }>>([]);
     const [contenedoresHerramientas, setContenedoresHerramientas] = useState<ContenedorHerramientas[]>([]);
     const [contenedoresMateriales, setContenedoresMateriales] = useState<ContenedorMateriales[]>([]);
     const [catalogoMaterialesFungibles, setCatalogoMaterialesFungibles] = useState<MaterialFungible[]>([]);

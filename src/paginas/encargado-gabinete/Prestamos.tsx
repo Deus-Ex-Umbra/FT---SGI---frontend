@@ -16,6 +16,7 @@ import { Skeleton } from '@/componentes/ui/skeleton';
 import { useBusquedaPaginacion } from '@/hooks/use-busqueda-paginacion';
 import { DialogoDevolverCanasta } from '@/componentes/paginas/prestamos/dialogo-devolver-canasta';
 import { DialogoDespacharCanasta } from '@/componentes/paginas/prestamos/dialogo-despachar-canasta';
+import { DialogoAceptarCanasta } from '@/componentes/paginas/prestamos/dialogo-aceptar-canasta';
 import { ModalBase } from '@/componentes/paginas/inventario/modal-base';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
@@ -598,79 +599,11 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
             )}
 
             {modalAceptarCanasta && (
-                <ModalBase
-                    titulo={`Confirmar Aceptación de Préstamo - #${modalAceptarCanasta.codigo ?? modalAceptarCanasta.id}`}
+                <DialogoAceptarCanasta
+                    canasta={modalAceptarCanasta}
                     onCerrar={() => setModalAceptarCanasta(null)}
-                    ancho="max-w-md"
-                    footer={
-                        <div className="flex justify-end gap-2">
-                            <Boton type="button" variant="outline" onClick={() => setModalAceptarCanasta(null)} className="h-9 px-4 text-xs">
-                                Cancelar
-                            </Boton>
-                            <Boton type="button" className="h-9 px-5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse-subtle" onClick={async () => {
-                                const id = modalAceptarCanasta.id;
-                                setModalAceptarCanasta(null);
-                                await handleAceptarCanasta(id);
-                            }}>
-                                Confirmar y Aceptar
-                            </Boton>
-                        </div>
-                    }
-                >
-                    <div className="space-y-4 p-4 text-xs">
-                        <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5 space-y-1.5 dark:border-slate-800 dark:bg-slate-900/30">
-                            <div>
-                                <span className="font-semibold text-slate-500">Estudiante(s):</span>
-                                <div className="mt-0.5 font-medium text-slate-800 dark:text-slate-205">
-                                    {obtenerTextoEstudiantes(modalAceptarCanasta)}
-                                </div>
-                            </div>
-                            <div>
-                                <span className="font-semibold text-slate-500">Docente:</span>
-                                <div className="mt-0.5 font-medium text-slate-800 dark:text-slate-200">
-                                    {modalAceptarCanasta.docente}
-                                </div>
-                            </div>
-                            {modalAceptarCanasta.observaciones && (
-                                <div>
-                                    <span className="font-semibold text-slate-500">Observaciones:</span>
-                                    <div className="mt-0.5 italic text-slate-600 dark:text-slate-300">
-                                        {modalAceptarCanasta.observaciones}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div>
-                            <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">Activos Fijos Solicitados:</h4>
-                            {modalAceptarCanasta.cosas && modalAceptarCanasta.cosas.length > 0 ? (
-                                <ul className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-150 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-950">
-                                    {modalAceptarCanasta.cosas.map((item, idx) => (
-                                        <li key={idx} className="px-3 py-2 text-slate-700 dark:text-slate-300">
-                                            [{item.codigoInventario}] {item.nombre}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-slate-400 italic pl-1">Ninguno</p>
-                            )}
-                        </div>
-
-                        {modalAceptarCanasta.consumibles && modalAceptarCanasta.consumibles.length > 0 && (
-                            <div>
-                                <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">Materiales Fungibles Solicitados:</h4>
-                                <ul className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-150 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-950">
-                                    {modalAceptarCanasta.consumibles.map((item, idx) => (
-                                        <li key={idx} className="px-3 py-2 text-slate-700 dark:text-slate-300 flex justify-between">
-                                            <span>{item.material} <span className="text-slate-400 font-normal text-[10px]">({item.lote})</span></span>
-                                            <span className="font-semibold text-slate-800 dark:text-slate-200">{item.cantidadSolicitada}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-                </ModalBase>
+                    onConfirmar={() => handleAceptarCanasta(modalAceptarCanasta.id)}
+                />
             )}
         </LayoutPagina>
     );
