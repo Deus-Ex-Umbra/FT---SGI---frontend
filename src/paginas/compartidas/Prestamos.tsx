@@ -453,7 +453,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                     )}
                                                     {c.consumibles && c.consumibles.length > 0 && (
                                                         <div className="truncate text-[10px] text-slate-500">
-                                                            <span className="font-semibold text-slate-600 dark:text-slate-450">Fungibles:</span> {c.consumibles.map(pc => `${pc.material} (Cant: ${pc.cantidadDespachada ?? pc.cantidadSolicitada})`).join(', ')}
+                                                            <span className="font-semibold text-slate-600 dark:text-slate-450">Fungibles:</span> {c.consumibles.map(pc => `${pc.material} (Cant: ${['solicitado', 'aceptado'].includes(c.estado) ? pc.cantidadSolicitada : (pc.cantidadDespachada ?? pc.cantidadSolicitada ?? 0)})`).join(', ')}
                                                         </div>
                                                     )}
                                                     {(!c.cosas || c.cosas.length === 0) && (!c.consumibles || c.consumibles.length === 0) && (
@@ -914,7 +914,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                 {item.lote && <p className="text-[10px] text-slate-500">Lote/Serie: {item.lote}</p>}
                                             </div>
                                             <span className="font-mono bg-blue-50 text-blue-705 px-2 py-0.5 rounded text-[10px] font-bold dark:bg-blue-950/40 dark:text-blue-300">
-                                                Cant: {item.cantidadDespachada ?? item.cantidadSolicitada}
+                                                Cant: {['solicitado', 'aceptado'].includes(modalVerActivos.estado) ? item.cantidadSolicitada : (item.cantidadDespachada ?? item.cantidadSolicitada ?? 0)}
                                             </span>
                                         </li>
                                     ))}

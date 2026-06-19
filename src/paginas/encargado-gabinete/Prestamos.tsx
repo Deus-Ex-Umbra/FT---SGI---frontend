@@ -335,7 +335,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                     )}
                                                     {c.consumibles && c.consumibles.length > 0 && (
                                                         <div className="truncate text-[10px] text-slate-500">
-                                                            <span className="font-semibold text-slate-600 dark:text-slate-450">Fungibles:</span> {c.consumibles.map(pc => `${pc.material} (Cant: ${pc.cantidadDespachada ?? pc.cantidadSolicitada})`).join(', ')}
+                                                            <span className="font-semibold text-slate-600 dark:text-slate-450">Fungibles:</span> {c.consumibles.map(pc => `${pc.material} (Cant: ${['solicitado', 'aceptado'].includes(c.estado) ? pc.cantidadSolicitada : (pc.cantidadDespachada ?? pc.cantidadSolicitada ?? (pc as any).cantidad ?? 0)})`).join(', ')}
                                                         </div>
                                                     )}
                                                     {(!c.cosas || c.cosas.length === 0) && (!c.consumibles || c.consumibles.length === 0) && (

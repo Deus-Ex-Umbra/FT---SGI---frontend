@@ -413,7 +413,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                 {item.lote && <p className="text-[10px] text-slate-500">Lote/Serie: {item.lote}</p>}
                                             </div>
                                             <span className="font-mono bg-blue-50 text-blue-705 px-2 py-0.5 rounded text-[10px] font-bold dark:bg-blue-950/40 dark:text-blue-300">
-                                                Cant: {item.cantidadDespachada ?? item.cantidadSolicitada ?? item.cantidad}
+                                                Cant: {['solicitado', 'aceptado'].includes(modalVerActivos.estado) ? item.cantidadSolicitada : (item.cantidadDespachada ?? item.cantidadSolicitada ?? item.cantidad ?? 0)}
                                             </span>
                                         </li>
                                     ))}
