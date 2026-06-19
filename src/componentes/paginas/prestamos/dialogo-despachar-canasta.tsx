@@ -393,10 +393,27 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                                          <Combobox<{ value: string; label: string }>
                                                                              items={herramientas
                                                                                  .filter(
-                                                                                     (h) =>
-                                                                                         String(h.contenedorId) === String(fila.idContenedor) &&
-                                                                                         h.estado === 'disponible' &&
-                                                                                         !filasFijos.some((f) => f.idHerramienta === h.id)
+                                                                                     (h) => {
+                                                                                         const matchesContenedor = fila.idContenedor ? String(h.contenedorId) === String(fila.idContenedor) : false;
+                                                                                         const term = (fila.nombreContenedor || fila.nombre || '')
+                                                                                             .toLowerCase()
+                                                                                             .replace(/[\(\[].*?[\)\]]/g, '')
+                                                                                             .trim();
+                                                                                         const cleanTerm = term.endsWith('s') && term.length > 3 ? term.slice(0, -1) : term;
+                                                                                         const hNombre = h.nombre.toLowerCase();
+                                                                                         const hCategoria = h.categoria.toLowerCase();
+                                                                                         const matchesNombre = cleanTerm && (
+                                                                                             hNombre.includes(cleanTerm) ||
+                                                                                             hCategoria.includes(cleanTerm) ||
+                                                                                             term.split(/\s+/)
+                                                                                                 .map(w => w.endsWith('s') && w.length > 3 ? w.slice(0, -1) : w)
+                                                                                                 .filter(w => w.length > 2)
+                                                                                                 .some(w => hNombre.includes(w) || hCategoria.includes(w))
+                                                                                         );
+                                                                                         return (matchesContenedor || matchesNombre) &&
+                                                                                             h.estado === 'disponible' &&
+                                                                                             !filasFijos.some((f) => f.idHerramienta === h.id);
+                                                                                     }
                                                                                  )
                                                                                  .map((h) => {
                                                                                      const inv = String(h.codigoInventario ?? '').trim();
@@ -480,7 +497,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                                     variant="ghost"
                                                                     size="icon"
                                                                     onClick={() => handleQuitarFilaFijo(fila.idPrestamo, fila.idHerramienta)}
-                                                                    disabled={fila.idHerramienta === null}
+                                                                    disabled={false}
                                                                     className="h-7 w-7 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-30 disabled:hover:bg-transparent"
                                                                     title="Quitar de la lista"
                                                                 >
@@ -619,10 +636,27 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                                      <Combobox<{ value: string; label: string }>
                                                                          items={herramientas
                                                                              .filter(
-                                                                                 (h) =>
-                                                                                     String(h.contenedorId) === String(fila.idContenedor) &&
-                                                                                     h.estado === 'disponible' &&
-                                                                                     !filasFijos.some((f) => f.idHerramienta === h.id)
+                                                                                 (h) => {
+                                                                                     const matchesContenedor = fila.idContenedor ? String(h.contenedorId) === String(fila.idContenedor) : false;
+                                                                                     const term = (fila.nombreContenedor || fila.nombre || '')
+                                                                                         .toLowerCase()
+                                                                                         .replace(/[\(\[].*?[\)\]]/g, '')
+                                                                                         .trim();
+                                                                                     const cleanTerm = term.endsWith('s') && term.length > 3 ? term.slice(0, -1) : term;
+                                                                                     const hNombre = h.nombre.toLowerCase();
+                                                                                     const hCategoria = h.categoria.toLowerCase();
+                                                                                     const matchesNombre = cleanTerm && (
+                                                                                         hNombre.includes(cleanTerm) ||
+                                                                                         hCategoria.includes(cleanTerm) ||
+                                                                                         term.split(/\s+/)
+                                                                                             .map(w => w.endsWith('s') && w.length > 3 ? w.slice(0, -1) : w)
+                                                                                             .filter(w => w.length > 2)
+                                                                                             .some(w => hNombre.includes(w) || hCategoria.includes(w))
+                                                                                     );
+                                                                                     return (matchesContenedor || matchesNombre) &&
+                                                                                         h.estado === 'disponible' &&
+                                                                                         !filasFijos.some((f) => f.idHerramienta === h.id);
+                                                                                 }
                                                                              )
                                                                              .map((h) => {
                                                                                  const inv = String(h.codigoInventario ?? '').trim();
@@ -706,7 +740,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 onClick={() => handleQuitarFilaFijo(fila.idPrestamo, fila.idHerramienta)}
-                                                                disabled={fila.idHerramienta === null}
+                                                                disabled={false}
                                                                 className="h-7 w-7 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-30 disabled:hover:bg-transparent"
                                                                 title="Quitar de la lista"
                                                             >
