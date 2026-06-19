@@ -181,7 +181,9 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
 
     const handleQuitarFilaFijo = (idPrestamo: string | number | null | undefined, idHerramienta: string | null) => {
         setFilasFijos((prev) => prev.filter((f) => {
-            const matches = (idPrestamo && f.idPrestamo === idPrestamo) || (idHerramienta && f.idHerramienta === idHerramienta);
+            const matches = 
+                (idPrestamo !== undefined && idPrestamo !== null && f.idPrestamo !== undefined && f.idPrestamo !== null && String(f.idPrestamo) === String(idPrestamo)) ||
+                (idHerramienta !== undefined && idHerramienta !== null && f.idHerramienta !== undefined && f.idHerramienta !== null && String(f.idHerramienta) === String(idHerramienta));
             return !matches;
         }));
     };
@@ -189,7 +191,9 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     const handleToggleRegistrado = (idPrestamo: string | number | null | undefined, idHerramienta: string | null, verificado: boolean) => {
         setFilasFijos((prev) =>
             prev.map((f) => {
-                const matches = (idPrestamo && f.idPrestamo === idPrestamo) || (idHerramienta && f.idHerramienta === idHerramienta);
+                const matches = 
+                    (idPrestamo !== undefined && idPrestamo !== null && f.idPrestamo !== undefined && f.idPrestamo !== null && String(f.idPrestamo) === String(idPrestamo)) ||
+                    (idHerramienta !== undefined && idHerramienta !== null && f.idHerramienta !== undefined && f.idHerramienta !== null && String(f.idHerramienta) === String(idHerramienta));
                 return matches ? { ...f, registrado: verificado } : f;
             })
         );
@@ -198,7 +202,9 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     const handleEstadoEntregaChange = (idPrestamo: string | number | null | undefined, idHerramienta: string | null, estado: EstadoFisicoItemActivo) => {
         setFilasFijos((prev) =>
             prev.map((f) => {
-                const matches = (idPrestamo && f.idPrestamo === idPrestamo) || (idHerramienta && f.idHerramienta === idHerramienta);
+                const matches = 
+                    (idPrestamo !== undefined && idPrestamo !== null && f.idPrestamo !== undefined && f.idPrestamo !== null && String(f.idPrestamo) === String(idPrestamo)) ||
+                    (idHerramienta !== undefined && idHerramienta !== null && f.idHerramienta !== undefined && f.idHerramienta !== null && String(f.idHerramienta) === String(idHerramienta));
                 return matches ? { ...f, estadoFisicoEntrega: estado } : f;
             })
         );
@@ -207,7 +213,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     const handleAsignarFisico = (idPrestamo: string | number, item: ItemActivoResumen) => {
         setFilasFijos((prev) =>
             prev.map((f) => {
-                if (f.idPrestamo === idPrestamo) {
+                if (f.idPrestamo !== undefined && f.idPrestamo !== null && String(f.idPrestamo) === String(idPrestamo)) {
                     return {
                         ...f,
                         idHerramienta: item.id,
@@ -223,10 +229,10 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     };
 
     const handleDesasignarFisico = (idPrestamo: string | number) => {
-        const originalCosa = (canasta.cosas ?? []).find((c) => c.idPrestamo === idPrestamo);
+        const originalCosa = (canasta.cosas ?? []).find((c) => c.idPrestamo !== undefined && c.idPrestamo !== null && String(c.idPrestamo) === String(idPrestamo));
         setFilasFijos((prev) =>
             prev.map((f) => {
-                if (f.idPrestamo === idPrestamo) {
+                if (f.idPrestamo !== undefined && f.idPrestamo !== null && String(f.idPrestamo) === String(idPrestamo)) {
                     return {
                         ...f,
                         idHerramienta: null,
@@ -391,44 +397,62 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                                      </span>
                                                                      <div className="flex items-center gap-1.5 max-w-xs">
                                                                          <Combobox<{ value: string; label: string }>
-                                                                             items={herramientas
-                                                                                 .filter(
-                                                                                     (h) => {
-                                                                                         const matchesContenedor = fila.idContenedor ? String(h.contenedorId) === String(fila.idContenedor) : false;
-                                                                                         const term = (fila.nombreContenedor || fila.nombre || '')
-                                                                                             .toLowerCase()
-                                                                                             .replace(/[\(\[].*?[\)\]]/g, '')
-                                                                                             .trim();
-                                                                                         const cleanTerm = term.endsWith('s') && term.length > 3 ? term.slice(0, -1) : term;
+                                                                             items={(() => {
+                                                                                 const term = (fila.nombreContenedor || fila.nombre || '')
+                                                                                     .toLowerCase()
+                                                                                     .replace(/[\(\[].*?[\)\]]/g, '')
+                                                                                     .trim();
+                                                                                 
+                                                                                 const singularizar = (w: string) => {
+                                                                                     let res = w;
+                                                                                     if (res.endsWith('es') && res.length > 3) {
+                                                                                         res = res.slice(0, -2);
+                                                                                     } else if (res.endsWith('s') && res.length > 2) {
+                                                                                         res = res.slice(0, -1);
+                                                                                     }
+                                                                                     if (res.endsWith('e') && res.length > 3) {
+                                                                                         res = res.slice(0, -1);
+                                                                                     }
+                                                                                     return res;
+                                                                                 };
+
+                                                                                 const cleanTerm = singularizar(term);
+                                                                                 const termWords = term.split(/\s+/).map(singularizar).filter(w => w.length > 2);
+
+                                                                                 return herramientas
+                                                                                     .filter((h) => {
+                                                                                         const matchesContenedor = 
+                                                                                             (fila.idContenedor && h.contenedorId && String(h.contenedorId) === String(fila.idContenedor)) ||
+                                                                                             (fila.nombreContenedor && h.contenedorNombre && String(h.contenedorNombre).trim().toLowerCase() === String(fila.nombreContenedor).trim().toLowerCase());
+
                                                                                          const hNombre = h.nombre.toLowerCase();
                                                                                          const hCategoria = h.categoria.toLowerCase();
+                                                                                         
                                                                                          const matchesNombre = cleanTerm && (
                                                                                              hNombre.includes(cleanTerm) ||
                                                                                              hCategoria.includes(cleanTerm) ||
-                                                                                             term.split(/\s+/)
-                                                                                                 .map(w => w.endsWith('s') && w.length > 3 ? w.slice(0, -1) : w)
-                                                                                                 .filter(w => w.length > 2)
-                                                                                                 .some(w => hNombre.includes(w) || hCategoria.includes(w))
+                                                                                             termWords.some(w => hNombre.includes(w) || hCategoria.includes(w))
                                                                                          );
+
                                                                                          return (matchesContenedor || matchesNombre) &&
                                                                                              h.estado === 'disponible' &&
                                                                                              !filasFijos.some((f) => f.idHerramienta === h.id);
-                                                                                     }
-                                                                                 )
-                                                                                 .map((h) => {
-                                                                                     const inv = String(h.codigoInventario ?? '').trim();
-                                                                                     const uni = String(h.codigoUnico ?? '').trim();
-                                                                                     const etiqueta = inv || uni ? `I: ${inv || '—'} | U: ${uni || '—'}` : 'SIN-CODIGO';
-                                                                                     return {
-                                                                                         value: h.id,
-                                                                                         label: `[${etiqueta}] ${h.nombre}`,
-                                                                                     };
-                                                                                 })}
+                                                                                     })
+                                                                                     .map((h) => {
+                                                                                         const inv = String(h.codigoInventario ?? '').trim();
+                                                                                         const uni = String(h.codigoUnico ?? '').trim();
+                                                                                         const etiqueta = inv || uni ? `I: ${inv || '—'} | U: ${uni || '—'}` : 'SIN-CODIGO';
+                                                                                         return {
+                                                                                             value: h.id,
+                                                                                             label: `[${etiqueta}] ${h.nombre}`,
+                                                                                         };
+                                                                                     });
+                                                                             })()}
                                                                              value=""
                                                                              onValueChange={(val) => {
                                                                                  if (!val) return;
                                                                                  const matchedItem = herramientas.find((h) => h.id === val);
-                                                                                 if (matchedItem && fila.idPrestamo) {
+                                                                                 if (matchedItem && fila.idPrestamo !== undefined && fila.idPrestamo !== null) {
                                                                                      handleAsignarFisico(fila.idPrestamo, matchedItem);
                                                                                  }
                                                                              }}
@@ -485,7 +509,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                                     type="button"
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    onClick={() => fila.idPrestamo && handleDesasignarFisico(fila.idPrestamo)}
+                                                                    onClick={() => fila.idPrestamo !== undefined && fila.idPrestamo !== null && handleDesasignarFisico(fila.idPrestamo)}
                                                                     className="h-7 w-7 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20"
                                                                     title="Desasignar activo físico"
                                                                 >
@@ -634,44 +658,62 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                                  </span>
                                                                  <div className="flex items-center gap-1.5 max-w-xs">
                                                                      <Combobox<{ value: string; label: string }>
-                                                                         items={herramientas
-                                                                             .filter(
-                                                                                 (h) => {
-                                                                                     const matchesContenedor = fila.idContenedor ? String(h.contenedorId) === String(fila.idContenedor) : false;
-                                                                                     const term = (fila.nombreContenedor || fila.nombre || '')
-                                                                                         .toLowerCase()
-                                                                                         .replace(/[\(\[].*?[\)\]]/g, '')
-                                                                                         .trim();
-                                                                                     const cleanTerm = term.endsWith('s') && term.length > 3 ? term.slice(0, -1) : term;
+                                                                         items={(() => {
+                                                                             const term = (fila.nombreContenedor || fila.nombre || '')
+                                                                                 .toLowerCase()
+                                                                                 .replace(/[\(\[].*?[\)\]]/g, '')
+                                                                                 .trim();
+                                                                             
+                                                                             const singularizar = (w: string) => {
+                                                                                 let res = w;
+                                                                                 if (res.endsWith('es') && res.length > 3) {
+                                                                                     res = res.slice(0, -2);
+                                                                                 } else if (res.endsWith('s') && res.length > 2) {
+                                                                                     res = res.slice(0, -1);
+                                                                                 }
+                                                                                 if (res.endsWith('e') && res.length > 3) {
+                                                                                     res = res.slice(0, -1);
+                                                                                 }
+                                                                                 return res;
+                                                                             };
+
+                                                                             const cleanTerm = singularizar(term);
+                                                                             const termWords = term.split(/\s+/).map(singularizar).filter(w => w.length > 2);
+
+                                                                             return herramientas
+                                                                                 .filter((h) => {
+                                                                                     const matchesContenedor = 
+                                                                                         (fila.idContenedor && h.contenedorId && String(h.contenedorId) === String(fila.idContenedor)) ||
+                                                                                         (fila.nombreContenedor && h.contenedorNombre && String(h.contenedorNombre).trim().toLowerCase() === String(fila.nombreContenedor).trim().toLowerCase());
+
                                                                                      const hNombre = h.nombre.toLowerCase();
                                                                                      const hCategoria = h.categoria.toLowerCase();
+                                                                                     
                                                                                      const matchesNombre = cleanTerm && (
                                                                                          hNombre.includes(cleanTerm) ||
                                                                                          hCategoria.includes(cleanTerm) ||
-                                                                                         term.split(/\s+/)
-                                                                                             .map(w => w.endsWith('s') && w.length > 3 ? w.slice(0, -1) : w)
-                                                                                             .filter(w => w.length > 2)
-                                                                                             .some(w => hNombre.includes(w) || hCategoria.includes(w))
+                                                                                         termWords.some(w => hNombre.includes(w) || hCategoria.includes(w))
                                                                                      );
+
                                                                                      return (matchesContenedor || matchesNombre) &&
                                                                                          h.estado === 'disponible' &&
                                                                                          !filasFijos.some((f) => f.idHerramienta === h.id);
-                                                                                 }
-                                                                             )
-                                                                             .map((h) => {
-                                                                                 const inv = String(h.codigoInventario ?? '').trim();
-                                                                                 const uni = String(h.codigoUnico ?? '').trim();
-                                                                                 const etiqueta = inv || uni ? `I: ${inv || '—'} | U: ${uni || '—'}` : 'SIN-CODIGO';
-                                                                                 return {
-                                                                                     value: h.id,
-                                                                                     label: `[${etiqueta}] ${h.nombre}`,
-                                                                                 };
-                                                                             })}
+                                                                                 })
+                                                                                 .map((h) => {
+                                                                                     const inv = String(h.codigoInventario ?? '').trim();
+                                                                                     const uni = String(h.codigoUnico ?? '').trim();
+                                                                                     const etiqueta = inv || uni ? `I: ${inv || '—'} | U: ${uni || '—'}` : 'SIN-CODIGO';
+                                                                                     return {
+                                                                                         value: h.id,
+                                                                                         label: `[${etiqueta}] ${h.nombre}`,
+                                                                                     };
+                                                                                 });
+                                                                         })()}
                                                                          value=""
                                                                          onValueChange={(val) => {
                                                                              if (!val) return;
                                                                              const matchedItem = herramientas.find((h) => h.id === val);
-                                                                             if (matchedItem && fila.idPrestamo) {
+                                                                             if (matchedItem && fila.idPrestamo !== undefined && fila.idPrestamo !== null) {
                                                                                  handleAsignarFisico(fila.idPrestamo, matchedItem);
                                                                              }
                                                                          }}
@@ -728,7 +770,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                                 type="button"
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                onClick={() => fila.idPrestamo && handleDesasignarFisico(fila.idPrestamo)}
+                                                                onClick={() => fila.idPrestamo !== undefined && fila.idPrestamo !== null && handleDesasignarFisico(fila.idPrestamo)}
                                                                 className="h-7 w-7 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20"
                                                                 title="Desasignar activo físico"
                                                             >
