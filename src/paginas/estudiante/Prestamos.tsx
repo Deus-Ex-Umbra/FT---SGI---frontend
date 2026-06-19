@@ -382,7 +382,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                     {modalVerActivos.cosas.map((item, idx) => (
                                         <li key={idx} className="px-3 py-2 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between">
                                             <div>
-                                                <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">[{item.codigoInventario}]</span>{' '}
+                                                <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">[{item.codigoInventario || 'Sin asignar'}]</span>{' '}
                                                 <span className="text-slate-705 dark:text-slate-300">{item.nombre}</span>
                                             </div>
                                             {item.registrado === false ? (

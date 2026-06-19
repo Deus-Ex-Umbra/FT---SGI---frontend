@@ -448,7 +448,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                 <div className="max-w-xs space-y-1">
                                                     {c.cosas && c.cosas.length > 0 && (
                                                         <div className="truncate">
-                                                            <span className="font-semibold">Fijos:</span> {c.cosas.map(i => `${i.registrado ? '✓' : '✗'} [${i.codigoInventario}] ${i.nombre}`).join(', ')}
+                                                             <span className="font-semibold">Fijos:</span> {c.cosas.map(i => `${i.registrado ? '✓' : '✗'} [${i.codigoInventario || 'Sin asignar'}] ${i.nombre}`).join(', ')}
                                                         </div>
                                                     )}
                                                     {c.consumibles && c.consumibles.length > 0 && (
@@ -883,7 +883,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                     {modalVerActivos.cosas.map((item, idx) => (
                                         <li key={idx} className="px-3 py-2 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between">
                                             <div>
-                                                <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">[{item.codigoInventario}]</span>{' '}
+                                                <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">[{item.codigoInventario || 'Sin asignar'}]</span>{' '}
                                                 <span className="text-slate-705 dark:text-slate-300">{item.nombre}</span>
                                             </div>
                                             {item.registrado === false ? (
@@ -981,7 +981,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                 <ul className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-150 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-950">
                                     {modalAceptarCanasta.cosas.map((item, idx) => (
                                         <li key={idx} className="px-3 py-2 text-slate-700 dark:text-slate-300">
-                                            [{item.codigoInventario}] {item.nombre}
+                                             [{item.codigoInventario || 'Sin asignar'}] {item.nombre}
                                         </li>
                                     ))}
                                 </ul>

@@ -330,7 +330,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                 <div className="max-w-xs space-y-1">
                                                     {c.cosas && c.cosas.length > 0 && (
                                                         <div className="truncate">
-                                                            <span className="font-semibold">Fijos:</span> {c.cosas.map(i => `${i.registrado ? '✓' : '✗'} [${i.codigoInventario}] ${i.nombre}`).join(', ')}
+                                                             <span className="font-semibold">Fijos:</span> {c.cosas.map(i => `${i.registrado ? '✓' : '✗'} [${i.codigoInventario || 'Sin asignar'}] ${i.nombre}`).join(', ')}
                                                         </div>
                                                     )}
                                                     {c.consumibles && c.consumibles.length > 0 && (
