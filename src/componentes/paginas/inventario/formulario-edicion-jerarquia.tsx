@@ -7,6 +7,7 @@ import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { useCierreSeguro } from '@/hooks/use-cierre-seguro';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
+import { Switch } from '@/componentes/ui/switch';
 
 type ValoresFormulario = Record<string, string>;
 
@@ -14,7 +15,7 @@ type CampoFormulario = {
     key: string;
     label: string;
     value: string;
-    type?: 'text' | 'number' | 'date' | 'datetime-local' | 'select' | 'combobox' | 'textarea';
+    type?: 'text' | 'number' | 'date' | 'datetime-local' | 'select' | 'combobox' | 'textarea' | 'switch';
     required?: boolean;
     requiredWhen?: (values: ValoresFormulario) => boolean;
     visibleWhen?: (values: ValoresFormulario) => boolean;
@@ -304,6 +305,23 @@ export const FormularioEdicionJerarquia = ({ titulo, camposIniciales, onGuardar,
                                             rows={campo.rows ?? 4}
                                             className={`rounded-md border bg-white px-3 py-2 text-sm text-slate-800 outline-none resize-none dark:bg-slate-800 dark:text-slate-100 ${tieneError ? clasesBordeError : clasesBordeOk} ${campo.inputClassName ?? ''}`}
                                         />
+                                    ) : campo.type === 'switch' ? (
+                                        <div className="flex items-center gap-2 py-1">
+                                            <Switch
+                                                id={campo.key}
+                                                checked={valores[campo.key] === 'true'}
+                                                onCheckedChange={(checked) => {
+                                                    setValores({ ...valores, [campo.key]: checked ? 'true' : 'false' });
+                                                    if (erroresCampos[campo.key]) {
+                                                        setErroresCampos((prev) => ({ ...prev, [campo.key]: false }));
+                                                        setError('');
+                                                    }
+                                                }}
+                                            />
+                                            <span className="text-xs text-slate-500">
+                                                {valores[campo.key] === 'true' ? 'Sí' : 'No'}
+                                            </span>
+                                        </div>
                                     ) : (
                                         <input
                                             title={etiqueta}

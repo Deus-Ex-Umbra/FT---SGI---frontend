@@ -97,8 +97,8 @@ interface ContextoInventarioTipo {
     agregarHerramienta: (h: Omit<Herramienta, 'id'>) => void;
     registrarEntregaMaterial: (idMaterial: string, cantidad: number, carnet: string, motivo: string) => void;
     recargarDatos: () => Promise<void>;
-    agregarContenedorCompartido: (datos: { nombre: string; descripcion: string }) => Promise<void>;
-    editarContenedorCompartido: (datos: { id: string; idActivo?: number; idMaterial?: number; nombre: string; descripcion: string }) => Promise<void>;
+    agregarContenedorCompartido: (datos: { nombre: string; descripcion: string; visible?: boolean }) => Promise<void>;
+    editarContenedorCompartido: (datos: { id: string; idActivo?: number; idMaterial?: number; nombre: string; descripcion: string; visible?: boolean }) => Promise<void>;
     eliminarContenedorCompartido: (datos: { id: string; idActivo?: number; idMaterial?: number }) => Promise<void>;
     agregarContenedorActivos: (datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => Promise<void>;
     editarContenedorActivos: (id: string, datos: Omit<ContenedorHerramientas, 'id' | 'herramientas'>) => Promise<void>;
@@ -439,12 +439,12 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
         })));
     };
 
-    const agregarContenedorCompartido = async (datos: { nombre: string; descripcion: string }) => {
+    const agregarContenedorCompartido = async (datos: { nombre: string; descripcion: string; visible?: boolean }) => {
         await crearContenedorCompartidoEnBackend(datos);
         await cargarDesdeBackend();
     };
 
-    const editarContenedorCompartido = async (datos: { id: string; idActivo?: number; idMaterial?: number; nombre: string; descripcion: string }) => {
+    const editarContenedorCompartido = async (datos: { id: string; idActivo?: number; idMaterial?: number; nombre: string; descripcion: string; visible?: boolean }) => {
         await editarContenedorCompartidoEnBackend(datos);
         await cargarDesdeBackend();
     };

@@ -77,10 +77,12 @@ export const Contenedores = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => 
                     camposIniciales={[
                         { key: 'nombre', label: 'Nombre del contenedor', value: modal.contenedor?.nombre ?? '' },
                         { key: 'descripcion', label: 'Descripción', value: modal.contenedor?.descripcion ?? '', required: false },
+                        { key: 'visible', label: 'Visible para préstamos', value: modal.contenedor?.visible !== false ? 'true' : 'false', type: 'switch', required: false },
                     ]}
                     onGuardar={async (valores) => {
+                        const visible = valores.visible === 'true';
                         if (modal.modo === 'crear') {
-                            await agregarContenedorCompartido({ nombre: valores.nombre, descripcion: valores.descripcion });
+                            await agregarContenedorCompartido({ nombre: valores.nombre, descripcion: valores.descripcion, visible });
                             return;
                         }
 
@@ -91,6 +93,7 @@ export const Contenedores = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => 
                             idMaterial: modal.contenedor.idMaterial,
                             nombre: valores.nombre,
                             descripcion: valores.descripcion,
+                            visible,
                         });
                     }}
                     onCerrar={() => setModal(null)}
@@ -132,6 +135,9 @@ export const Contenedores = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => 
                                     <div className="flex items-center gap-2">
                                         <span className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-300">
                                             Compartido
+                                        </span>
+                                        <span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-semibold ${contenedor.visible !== false ? 'border-emerald-250 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400'}`}>
+                                            {contenedor.visible !== false ? 'Visible' : 'Oculto'}
                                         </span>
                                         <button
                                             onClick={() => setModal({ modo: 'editar', contenedor })}

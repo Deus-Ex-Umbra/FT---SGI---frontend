@@ -231,7 +231,8 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
             try {
                 setCargandoContenedores(true);
                 const data = await cargarContenedoresPorInventarioEnBackend(Number(idInventarioSeleccionado));
-                setContenedores(data);
+                const contenedoresVisibles = data.filter((c: any) => c.visible !== false);
+                setContenedores(contenedoresVisibles);
             } catch (err) {
                 console.error('Error al cargar contenedores:', err);
             } finally {

@@ -118,6 +118,7 @@ export interface ContenedorCompartidoApi {
     descripcion: string;
     idActivo?: number;
     idMaterial?: number;
+    visible?: boolean;
 }
 
 export interface MateriaApi {

@@ -134,7 +134,7 @@ export const cargarContenedoresCompartidosDesdeBackend = async (): Promise<Conte
     return (await resp.json()) as ContenedorCompartidoApi[];
 };
 
-export const crearContenedorCompartidoEnBackend = async (payload: { nombre: string; descripcion: string }): Promise<void> => {
+export const crearContenedorCompartidoEnBackend = async (payload: { nombre: string; descripcion: string; visible?: boolean }): Promise<void> => {
     const resp = await fetch(`${API_BASE}/contenedores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -153,6 +153,7 @@ export const editarContenedorCompartidoEnBackend = async (payload: {
     idMaterial?: number;
     nombre: string;
     descripcion: string;
+    visible?: boolean;
 }): Promise<void> => {
     const resp = await fetch(`${API_BASE}/contenedores/${encodeURIComponent(payload.id)}`, {
         method: 'PUT',
