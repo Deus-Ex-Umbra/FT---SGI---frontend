@@ -45,6 +45,7 @@ interface FilaDespachoFungible {
     cantidadSolicitada: number;
     cantidadDespachada: number;
     unidad?: string;
+    tipoCantidad?: 'entero' | 'decimal';
 }
 
 export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, onCerrar, onConfirmar }: Props) => {
@@ -134,23 +135,39 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
             const cantidadSol = Number(c.cantidadSolicitada ?? 0);
             let idActivoFungibleNum = c.idActivoFungible ? Number(c.idActivoFungible) : null;
             let unidad = 'uds';
+            let tipoCantidad: 'entero' | 'decimal' | undefined = undefined;
             
             if (!idActivoFungibleNum && c.idLote) {
-                for (const cont of contenedoresMateriales || []) {
-                    for (const mat of cont.materiales) {
-                        if (mat.subinstancias.some(sub => String(sub.id) === String(c.idLote))) {
-                            idActivoFungibleNum = Number(mat.id);
-                            unidad = mat.unidad || 'uds';
-                            break;
+                const mat = materiales.find(m => m.subinstancias.some(sub => String(sub.id) === String(c.idLote)));
+                if (mat) {
+                    idActivoFungibleNum = Number(mat.id);
+                    unidad = mat.unidad || 'uds';
+                    tipoCantidad = mat.tipoCantidad;
+                } else {
+                    for (const cont of contenedoresMateriales || []) {
+                        for (const mat of cont.materiales) {
+                            if (mat.subinstancias.some(sub => String(sub.id) === String(c.idLote))) {
+                                idActivoFungibleNum = Number(mat.id);
+                                unidad = mat.unidad || 'uds';
+                                tipoCantidad = mat.tipoCantidad;
+                                break;
+                            }
                         }
                     }
                 }
             } else if (idActivoFungibleNum) {
-                for (const cont of contenedoresMateriales || []) {
-                    const mat = cont.materiales.find(m => Number(m.id) === idActivoFungibleNum);
-                    if (mat && mat.unidad) {
-                        unidad = mat.unidad;
-                        break;
+                const mat = materiales.find(m => Number(m.id) === idActivoFungibleNum);
+                if (mat) {
+                    unidad = mat.unidad;
+                    tipoCantidad = mat.tipoCantidad;
+                } else {
+                    for (const cont of contenedoresMateriales || []) {
+                        const mat = cont.materiales.find(m => Number(m.id) === idActivoFungibleNum);
+                        if (mat && mat.unidad) {
+                            unidad = mat.unidad;
+                            tipoCantidad = mat.tipoCantidad;
+                            break;
+                        }
                     }
                 }
             }
@@ -165,9 +182,10 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                 cantidadSolicitada: cantidadSol,
                 cantidadDespachada: c.cantidadDespachada ?? cantidadSol,
                 unidad,
+                tipoCantidad,
             };
         });
-    }, [canasta.consumibles, contenedoresMateriales]);
+    }, [canasta.consumibles, contenedoresMateriales, materiales]);
 
     const [filasFungibles, setFilasFungibles] = useState<FilaDespachoFungible[]>(filasInicialesFungibles);
 
@@ -745,7 +763,8 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                                     type="number"
                                                                     title="Cantidad a entregar"
                                                                     value={fila.cantidadDespachada}
-                                                                    min={0}
+                                                                    min={fila.tipoCantidad === 'decimal' ? 0.01 : 1}
+                                                                    step={fila.tipoCantidad === 'decimal' ? 'any' : '1'}
                                                                     onChange={(e) => handleCantidadFungibleChange(fila.idFila, Number(e.target.value))}
                                                                     className="h-8 w-20 rounded-md border border-slate-200 bg-white px-2 text-center text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                                                                 />
@@ -1014,7 +1033,8 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                                     type="number"
                                                                     title="Cantidad a entregar"
                                                                     value={fila.cantidadDespachada}
-                                                                    min={0}
+                                                                    min={fila.tipoCantidad === 'decimal' ? 0.01 : 1}
+                                                                    step={fila.tipoCantidad === 'decimal' ? 'any' : '1'}
                                                                     onChange={(e) => handleCantidadFungibleChange(fila.idFila, Number(e.target.value))}
                                                                     className="h-8 w-20 rounded-md border border-slate-200 bg-white px-2 text-center text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                                                                 />

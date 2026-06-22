@@ -967,8 +967,6 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                                                 (c) => c.idActivoFungible === Number(mat.id) && c.idContenedor === Number(cont.id)
                                             );
                                             const seleccionado = !!itemSel;
-                                            const cantidadVal = itemSel ? itemSel.cantidad : (mat.promedioSolicitado || 1);
-                                            const motivoVal = itemSel ? itemSel.motivo : 'Uso en clase';
 
                                             return (
                                                 <div key={mat.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
@@ -1010,52 +1008,6 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                                                             </p>
                                                         </label>
                                                     </div>
-
-                                                    {seleccionado && (
-                                                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 ml-7 sm:ml-0">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-[10px] text-slate-400 dark:text-slate-500">Cant:</span>
-                                                                <Input
-                                                                    type="number"
-                                                                    min={1}
-                                                                    value={cantidadVal}
-                                                                    onChange={(e) => {
-                                                                        const val = Math.max(1, Number(e.target.value) || 1);
-                                                                        setCampos((prev) => ({
-                                                                            ...prev,
-                                                                            consumibles: prev.consumibles.map((c) =>
-                                                                                c.idActivoFungible === Number(mat.id) && c.idContenedor === Number(cont.id)
-                                                                                    ? { ...c, cantidad: val }
-                                                                                    : c
-                                                                            ),
-                                                                        }));
-                                                                    }}
-                                                                    className="h-8 w-16 text-center text-xs p-1"
-                                                                />
-                                                                <span className="text-xs text-slate-500 font-medium dark:text-slate-400 shrink-0">{mat.unidad}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 flex-1 min-w-[120px]">
-                                                                <span className="text-[10px] text-slate-400 dark:text-slate-500">Motivo:</span>
-                                                                <Input
-                                                                    type="text"
-                                                                    value={motivoVal}
-                                                                    onChange={(e) => {
-                                                                        const val = e.target.value;
-                                                                        setCampos((prev) => ({
-                                                                            ...prev,
-                                                                            consumibles: prev.consumibles.map((c) =>
-                                                                                c.idActivoFungible === Number(mat.id) && c.idContenedor === Number(cont.id)
-                                                                                    ? { ...c, motivo: val }
-                                                                                    : c
-                                                                            ),
-                                                                        }));
-                                                                    }}
-                                                                    className="h-8 text-xs px-2 flex-1"
-                                                                    placeholder="Uso en clase..."
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             );
                                         })}

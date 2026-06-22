@@ -239,6 +239,7 @@ export interface MaterialFungible {
     stockMinimoHabilitado: boolean;
     stockMinimo: number;
     tipoIdentificacion: 'lote' | 'serie' | 'simple';
+    tipoCantidad?: 'entero' | 'decimal';
     cantidadDisponible?: number;
     precio?: number;
     subinstancias: SubinstanciaMaterial[];

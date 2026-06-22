@@ -3,6 +3,7 @@ import { ModalBase } from '@/componentes/paginas/inventario/modal-base';
 import { Boton } from '@/componentes/ui/button';
 import type { PrestamoCanastaRegistro } from '@/tipos/inventario';
 import { Check, X, User, Users, Clipboard, AlertCircle } from 'lucide-react';
+import { useInventario } from '@/contextos/ContextoInventario';
 
 interface Props {
     canasta: PrestamoCanastaRegistro;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export const DialogoAceptarCanasta = ({ canasta, onCerrar, onConfirmar }: Props) => {
+    const { materiales, contenedoresMateriales } = useInventario();
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState('');
 
@@ -49,6 +51,32 @@ export const DialogoAceptarCanasta = ({ canasta, onCerrar, onConfirmar }: Props)
 
     const obtenerCantidadFungible = (item: { cantidadSolicitada?: number; cantidad?: number }) => {
         return item.cantidadSolicitada ?? item.cantidad ?? 0;
+    };
+
+    const obtenerUnidadMedida = (item: any) => {
+        const idAct = item.idActivoFungible ? Number(item.idActivoFungible) : null;
+        if (idAct) {
+            const mat = materiales.find(m => Number(m.id) === idAct);
+            if (mat?.unidad) return mat.unidad;
+        }
+        if (item.idLote) {
+            const mat = materiales.find(m => m.subinstancias.some(sub => String(sub.id) === String(item.idLote)));
+            if (mat?.unidad) return mat.unidad;
+        }
+        for (const cont of contenedoresMateriales || []) {
+            if (idAct) {
+                const mat = cont.materiales.find(m => Number(m.id) === idAct);
+                if (mat?.unidad) return mat.unidad;
+            }
+            if (item.idLote) {
+                for (const mat of cont.materiales) {
+                    if (mat.subinstancias.some(sub => String(sub.id) === String(item.idLote))) {
+                        return mat.unidad;
+                    }
+                }
+            }
+        }
+        return 'unidades';
     };
 
     const handleSubmit = async () => {
@@ -222,7 +250,7 @@ export const DialogoAceptarCanasta = ({ canasta, onCerrar, onConfirmar }: Props)
                                         <span className="text-[10px] text-slate-450 font-normal">Lote: <span className="font-medium font-mono">{item.lote}</span></span>
                                     </div>
                                     <span className="rounded-md bg-amber-50 border border-amber-200/60 px-2.5 py-1 text-[11px] font-bold text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/60 shadow-3xs">
-                                        Cant: {obtenerCantidadFungible(item)}
+                                        Cant: {obtenerCantidadFungible(item)} {obtenerUnidadMedida(item)}
                                     </span>
                                 </li>
                             ))}

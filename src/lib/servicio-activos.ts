@@ -317,6 +317,7 @@ export const cargarMaterialesDesdeBackend = async (): Promise<{ contenedores: Co
             stockMinimoHabilitado: false,
             stockMinimo: 0,
             tipoIdentificacion: (mat.tipoIdentificacion ?? 'lote') as MaterialFungible['tipoIdentificacion'],
+            tipoCantidad: mat.tipoCantidad,
             subinstancias: [],
             idInventario: mat.idInventario,
             promedioSolicitado: mat.promedioSolicitado ?? 1,
@@ -359,6 +360,7 @@ export const cargarMaterialesDesdeBackend = async (): Promise<{ contenedores: Co
             stockMinimoHabilitado: false,
             stockMinimo: 0,
             tipoIdentificacion: (mat.tipoIdentificacion ?? 'lote') as MaterialFungible['tipoIdentificacion'],
+            tipoCantidad: mat.tipoCantidad,
             subinstancias: [],
             idInventario: mat.idInventario,
             promedioSolicitado: mat.promedioSolicitado ?? 1,
@@ -516,7 +518,7 @@ export const cargarKardexMaterialEnBackend = async (idMaterial: string): Promise
     }
     return await resp.json();
 };
-export const cargarContenedoresPorInventarioEnBackend = async (idInventario: number): Promise<Array<{ id: number; nombre: string; ubicacion: string }>> => {
+export const cargarContenedoresPorInventarioEnBackend = async (idInventario: number): Promise<Array<{ id: number; nombre: string; ubicacion: string; tipo?: 'indefinido' | 'fijo' | 'fungible' }>> => {
     const resp = await fetch(`${API_BASE}/activos/contenedores/inventario/${idInventario}`, {
         headers: authHeaders(),
     });
