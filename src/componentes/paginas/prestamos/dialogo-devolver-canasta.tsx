@@ -26,6 +26,7 @@ interface FungibleDevolucionFila {
     cantidadDespachada: number;
     cantidadDevuelta: number;
     estadoDevuelto: EstadoFisicoItemActivo;
+    consumidoTodo: boolean;
 }
 
 interface Props {
@@ -63,7 +64,7 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState('');
     const { materiales } = useInventario();
-    const [misInventarios, setMisInventarios] = useState<Array<{ id: number; nombre: string; puedeEditarFungibles?: boolean }>>([]);
+    const [misInventarios, setMisInventarios] = useState<Array<{ id: number; nombre: string; puedeEditarFungibles?: boolean; puedeEditarFijos?: boolean }>>([]);
 
     useEffect(() => {
         const cargar = async () => {
@@ -92,6 +93,24 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
         const inv = misInventarios.find(i => Number(i.id) === Number(idInv));
         return inv ? inv.puedeEditarFungibles === true : false;
     }, [canasta, herramientas, materiales, misInventarios]);
+
+    const tienePermisoFijos = useMemo(() => {
+        let idInv: number | null = null;
+        if (canasta.cosas && canasta.cosas.length > 0) {
+            const h = herramientas.find(it => it.id === canasta.cosas?.[0]?.idHerramienta);
+            if (h?.idInventario) idInv = Number(h.idInventario);
+        }
+        if (!idInv && canasta.consumibles && canasta.consumibles.length > 0) {
+            const m = materiales.find(it => it.id === canasta.consumibles?.[0]?.idLote);
+            if (m?.idInventario) idInv = Number(m.idInventario);
+        }
+        
+        if (!idInv) return false;
+        const inv = misInventarios.find(i => Number(i.id) === Number(idInv));
+        return inv ? inv.puedeEditarFijos === true : false;
+    }, [canasta, herramientas, materiales, misInventarios]);
+
+    const mostrarTabs = tienePermisoFungibles && tienePermisoFijos;
     const estudiantesConCarnetRetenido = useMemo(() => {
         const CIs = canasta.carnetsEstudiantes?.length 
             ? canasta.carnetsEstudiantes 
@@ -136,6 +155,7 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
                 cantidadDespachada: cantidadDesp,
                 cantidadDevuelta: 0,
                 estadoDevuelto: 'bueno',
+                consumidoTodo: true,
             };
         });
     }, [canasta.consumibles]);
@@ -179,9 +199,24 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
         );
     };
 
+    const handleToggleConsumidoTodo = (idLote: string, checked: boolean) => {
+        setFilasFungibles((prev) =>
+            prev.map((f) => {
+                if (f.idLote === idLote) {
+                    return {
+                        ...f,
+                        consumidoTodo: checked,
+                        cantidadDevuelta: checked ? 0 : f.cantidadDespachada,
+                    };
+                }
+                return f;
+            })
+        );
+    };
+
     const handleFungibleCantChange = (idLote: string, cant: number) => {
         setFilasFungibles((prev) =>
-            prev.map((f) => (f.idLote === idLote ? { ...f, cantidadDevuelta: Math.max(0, cant) } : f))
+            prev.map((f) => (f.idLote === idLote ? { ...f, cantidadDevuelta: Math.max(0, Math.min(f.cantidadDespachada, cant)) } : f))
         );
     };
 
@@ -231,6 +266,151 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
         }
     };
 
+    const renderFijosSeccion = () => {
+        return (
+            <div className="space-y-2">
+                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+                    <table className="w-full text-xs">
+                        <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                                <th className="px-3 py-2 text-left w-12">Devolver</th>
+                                <th className="px-3 py-2 text-left">Activo</th>
+                                <th className="px-3 py-2 text-left w-24">Entregado</th>
+                                <th className="px-3 py-2 text-left w-48">Estado devolución (modificar)</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {filasFijos.map((fila) => {
+                                const esNoDespachado = !fila.registrado;
+                                return (
+                                    <tr key={fila.idHerramienta} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 ${esNoDespachado ? 'opacity-50 bg-slate-50/50 dark:bg-slate-900/45' : ''}`}>
+                                        <td className="px-3 py-2 text-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={fila.devuelto}
+                                                disabled={esNoDespachado}
+                                                onChange={(e) => handleToggleFijoDevuelto(fila.idHerramienta, e.target.checked)}
+                                                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                title={esNoDespachado ? "No despachado" : "Marcar como devuelto"}
+                                            />
+                                        </td>
+                                        <td className="px-3 py-2 min-w-0">
+                                            <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[250px] truncate" title={`[${fila.codigoInventario || '—'}] ${fila.nombre}`}>
+                                                [{fila.codigoInventario || '—'}] {fila.nombre}
+                                                {esNoDespachado && (
+                                                    <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-semibold text-slate-650 dark:bg-slate-800 dark:text-slate-400">
+                                                        No despachado
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-[10px] text-slate-400">ID: {fila.idHerramienta}</div>
+                                        </td>
+                                        <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
+                                            {esNoDespachado ? '—' : etiquetaEstadoFisicoItem(fila.estadoDespachado)}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <select
+                                                title="Estado físico al devolver"
+                                                value={fila.estadoActual}
+                                                disabled={!fila.devuelto || esNoDespachado}
+                                                onChange={(e) => handleEstadoActualChange(fila.idHerramienta, e.target.value as EstadoFisicoItemActivo)}
+                                                className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:disabled:bg-slate-950"
+                                            >
+                                                {ESTADOS_FISICOS_ITEM.map((e) => (
+                                                    <option key={e} value={e}>{etiquetaEstadoFisicoItem(e)}</option>
+                                                ))}
+                                            </select>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            {filasFijos.length === 0 && (
+                                <tr>
+                                    <td colSpan={4} className="px-3 py-4 text-center text-slate-500 dark:text-slate-400">
+                                        No hay activos en esta canasta.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
+    const renderFungiblesSeccion = () => {
+        return (
+            <div className="space-y-2">
+                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+                    <table className="w-full text-xs">
+                        <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                                <th className="px-3 py-2 text-left">Material / Lote</th>
+                                <th className="px-3 py-2 text-center w-24">Despachado</th>
+                                <th className="px-3 py-2 text-center w-32">Consumido todo</th>
+                                <th className="px-3 py-2 text-center w-32">Cantidad Devuelta</th>
+                                <th className="px-3 py-2 text-left w-48">Estado material devuelto</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {filasFungibles.map((fila) => (
+                                <tr key={fila.idLote} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                                    <td className="px-3 py-2 min-w-0">
+                                        <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[200px] truncate" title={fila.material}>{fila.material}</div>
+                                        <div className="text-[10px] text-slate-400">Lote: {fila.lote} | ID: {fila.idLote}</div>
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-slate-600 dark:text-slate-300">
+                                        {fila.cantidadDespachada}
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={fila.consumidoTodo}
+                                            onChange={(e) => handleToggleConsumidoTodo(fila.idLote, e.target.checked)}
+                                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <input
+                                            type="number"
+                                            title="Cantidad devuelta"
+                                            value={fila.cantidadDevuelta}
+                                            min={0}
+                                            max={fila.cantidadDespachada}
+                                            disabled={fila.consumidoTodo}
+                                            onChange={(e) => handleFungibleCantChange(fila.idLote, Number(e.target.value))}
+                                            className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-center text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
+                                        />
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <select
+                                            title="Estado del material devuelto"
+                                            value={fila.estadoDevuelto}
+                                            disabled={fila.cantidadDevuelta <= 0}
+                                            onChange={(e) => handleFungibleEstadoChange(fila.idLote, e.target.value as EstadoFisicoItemActivo)}
+                                            className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:disabled:bg-slate-950"
+                                        >
+                                            {ESTADOS_FISICOS_ITEM.map((e) => (
+                                                <option key={e} value={e}>{etiquetaEstadoFisicoItem(e)}</option>
+                                            ))}
+                                        </select>
+                                    </td>
+                                </tr>
+                            ))}
+                            {filasFungibles.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="px-3 py-4 text-center text-slate-500 dark:text-slate-400">
+                                        No hay materiales fungibles en esta canasta.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <ModalBase
             titulo={`Devolver canasta #${canasta.id}`}
@@ -264,268 +444,29 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
                             <div><span className="font-semibold">Estado:</span> <span className="capitalize">{canasta.estado}</span></div>
                         </div>
                     </div>
-                    {tienePermisoFungibles ? (
+                    {mostrarTabs ? (
                         <Tabs defaultValue="equipos" className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="equipos" className="text-xs">Activos Fijos (Equipos)</TabsTrigger>
                                 <TabsTrigger value="materiales" className="text-xs">Materiales Fungibles</TabsTrigger>
                             </TabsList>
                             <TabsContent value="equipos" className="mt-4 space-y-4">
-                                <div className="space-y-2">
-                                    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                                        <table className="w-full text-xs">
-                                            <thead>
-                                                <tr className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
-                                                    <th className="px-3 py-2 text-left w-12">Devolver</th>
-                                                    <th className="px-3 py-2 text-left">Activo</th>
-                                                    <th className="px-3 py-2 text-left w-24">Entregado</th>
-                                                    <th className="px-3 py-2 text-left w-48">Estado devolución (modificar)</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                {filasFijos.map((fila) => {
-                                                    const esNoDespachado = !fila.registrado;
-                                                    return (
-                                                        <tr key={fila.idHerramienta} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 ${esNoDespachado ? 'opacity-50 bg-slate-50/50 dark:bg-slate-900/45' : ''}`}>
-                                                            <td className="px-3 py-2 text-center">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={fila.devuelto}
-                                                                    disabled={esNoDespachado}
-                                                                    onChange={(e) => handleToggleFijoDevuelto(fila.idHerramienta, e.target.checked)}
-                                                                    className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                    title={esNoDespachado ? "No despachado" : "Marcar como devuelto"}
-                                                                />
-                                                            </td>
-                                                            <td className="px-3 py-2 min-w-0">
-                                                                <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[250px] truncate" title={`[${fila.codigoInventario || '—'}] ${fila.nombre}`}>
-                                                                    [{fila.codigoInventario || '—'}] {fila.nombre}
-                                                                    {esNoDespachado && (
-                                                                        <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-                                                                            No despachado
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="text-[10px] text-slate-400">ID: {fila.idHerramienta}</div>
-                                                            </td>
-                                                            <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
-                                                                {esNoDespachado ? '—' : etiquetaEstadoFisicoItem(fila.estadoDespachado)}
-                                                            </td>
-                                                            <td className="px-3 py-2">
-                                                                <select
-                                                                    title="Estado físico al devolver"
-                                                                    value={fila.estadoActual}
-                                                                    disabled={!fila.devuelto || esNoDespachado}
-                                                                    onChange={(e) => handleEstadoActualChange(fila.idHerramienta, e.target.value as EstadoFisicoItemActivo)}
-                                                                    className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:disabled:bg-slate-950"
-                                                                >
-                                                                    {ESTADOS_FISICOS_ITEM.map((e) => (
-                                                                        <option key={e} value={e}>{etiquetaEstadoFisicoItem(e)}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                                {filasFijos.length === 0 && (
-                                                    <tr>
-                                                        <td colSpan={4} className="px-3 py-4 text-center text-slate-500 dark:text-slate-400">
-                                                            No hay activos en esta canasta.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                                {renderFijosSeccion()}
                             </TabsContent>
                             <TabsContent value="materiales" className="mt-4 space-y-4">
-                                <div className="space-y-2">
-                                    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                                        <table className="w-full text-xs">
-                                            <thead>
-                                                <tr className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
-                                                    <th className="px-3 py-2 text-left">Material / Lote</th>
-                                                    <th className="px-3 py-2 text-center w-24">Despachado</th>
-                                                    <th className="px-3 py-2 text-center w-32">Cantidad Devuelta</th>
-                                                    <th className="px-3 py-2 text-left w-48">Estado material devuelto</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                {filasFungibles.map((fila) => (
-                                                    <tr key={fila.idLote} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                                                        <td className="px-3 py-2 min-w-0">
-                                                            <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[200px] truncate" title={fila.material}>{fila.material}</div>
-                                                            <div className="text-[10px] text-slate-400">Lote: {fila.lote} | ID: {fila.idLote}</div>
-                                                        </td>
-                                                        <td className="px-3 py-2 text-center text-slate-600 dark:text-slate-300">
-                                                            {fila.cantidadDespachada}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <input
-                                                                type="number"
-                                                                title="Cantidad devuelta"
-                                                                value={fila.cantidadDevuelta}
-                                                                min={0}
-                                                                max={fila.cantidadDespachada}
-                                                                onChange={(e) => handleFungibleCantChange(fila.idLote, Number(e.target.value))}
-                                                                className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-center text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                                                            />
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <select
-                                                                title="Estado del material devuelto"
-                                                                value={fila.estadoDevuelto}
-                                                                disabled={fila.cantidadDevuelta <= 0}
-                                                                onChange={(e) => handleFungibleEstadoChange(fila.idLote, e.target.value as EstadoFisicoItemActivo)}
-                                                                className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:disabled:bg-slate-950"
-                                                            >
-                                                                {ESTADOS_FISICOS_ITEM.map((e) => (
-                                                                    <option key={e} value={e}>{etiquetaEstadoFisicoItem(e)}</option>
-                                                                ))}
-                                                            </select>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                                {filasFungibles.length === 0 && (
-                                                    <tr>
-                                                        <td colSpan={4} className="px-3 py-4 text-center text-slate-500 dark:text-slate-400">
-                                                            No hay materiales fungibles en esta canasta.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                                {renderFungiblesSeccion()}
                             </TabsContent>
                         </Tabs>
+                    ) : tienePermisoFungibles ? (
+                        <div className="space-y-2">
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Materiales Fungibles</h3>
+                            {renderFungiblesSeccion()}
+                        </div>
                     ) : (
-                        <>
-                            <div className="space-y-2">
-                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Activos Fijos (Equipos)</h3>
-                                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                                    <table className="w-full text-xs">
-                                        <thead>
-                                            <tr className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
-                                                <th className="px-3 py-2 text-left w-12">Devolver</th>
-                                                <th className="px-3 py-2 text-left">Activo</th>
-                                                <th className="px-3 py-2 text-left w-24">Entregado</th>
-                                                <th className="px-3 py-2 text-left w-48">Estado devolución (modificar)</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                            {filasFijos.map((fila) => {
-                                                const esNoDespachado = !fila.registrado;
-                                                return (
-                                                    <tr key={fila.idHerramienta} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 ${esNoDespachado ? 'opacity-50 bg-slate-50/50 dark:bg-slate-900/45' : ''}`}>
-                                                        <td className="px-3 py-2 text-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={fila.devuelto}
-                                                                disabled={esNoDespachado}
-                                                                onChange={(e) => handleToggleFijoDevuelto(fila.idHerramienta, e.target.checked)}
-                                                                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                title={esNoDespachado ? "No despachado" : "Marcar como devuelto"}
-                                                            />
-                                                        </td>
-                                                        <td className="px-3 py-2 min-w-0">
-                                                            <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[250px] truncate" title={`[${fila.codigoInventario || '—'}] ${fila.nombre}`}>
-                                                                [{fila.codigoInventario || '—'}] {fila.nombre}
-                                                                {esNoDespachado && (
-                                                                    <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-                                                                        No despachado
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-[10px] text-slate-400">ID: {fila.idHerramienta}</div>
-                                                        </td>
-                                                        <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
-                                                            {esNoDespachado ? '—' : etiquetaEstadoFisicoItem(fila.estadoDespachado)}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <select
-                                                                title="Estado físico al devolver"
-                                                                value={fila.estadoActual}
-                                                                disabled={!fila.devuelto || esNoDespachado}
-                                                                onChange={(e) => handleEstadoActualChange(fila.idHerramienta, e.target.value as EstadoFisicoItemActivo)}
-                                                                className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:disabled:bg-slate-950"
-                                                            >
-                                                                {ESTADOS_FISICOS_ITEM.map((e) => (
-                                                                    <option key={e} value={e}>{etiquetaEstadoFisicoItem(e)}</option>
-                                                                ))}
-                                                            </select>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-
-                                            {filasFijos.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={4} className="px-3 py-4 text-center text-slate-500 dark:text-slate-400">
-                                                        No hay activos en esta canasta.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            {filasFungibles.length > 0 && (
-                                <div className="space-y-2">
-                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Materiales Fungibles</h3>
-                                    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                                        <table className="w-full text-xs">
-                                            <thead>
-                                                <tr className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
-                                                    <th className="px-3 py-2 text-left">Material / Lote</th>
-                                                    <th className="px-3 py-2 text-center w-24">Despachado</th>
-                                                    <th className="px-3 py-2 text-center w-32">Cantidad Devuelta</th>
-                                                    <th className="px-3 py-2 text-left w-48">Estado material devuelto</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                {filasFungibles.map((fila) => (
-                                                    <tr key={fila.idLote} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                                                        <td className="px-3 py-2 min-w-0">
-                                                            <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[200px] truncate" title={fila.material}>{fila.material}</div>
-                                                            <div className="text-[10px] text-slate-400">Lote: {fila.lote} | ID: {fila.idLote}</div>
-                                                        </td>
-                                                        <td className="px-3 py-2 text-center text-slate-600 dark:text-slate-300">
-                                                            {fila.cantidadDespachada}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <input
-                                                                type="number"
-                                                                title="Cantidad devuelta"
-                                                                value={fila.cantidadDevuelta}
-                                                                min={0}
-                                                                max={fila.cantidadDespachada}
-                                                                onChange={(e) => handleFungibleCantChange(fila.idLote, Number(e.target.value))}
-                                                                className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-center text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                                                            />
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <select
-                                                                title="Estado del material devuelto"
-                                                                value={fila.estadoDevuelto}
-                                                                disabled={fila.cantidadDevuelta <= 0}
-                                                                onChange={(e) => handleFungibleEstadoChange(fila.idLote, e.target.value as EstadoFisicoItemActivo)}
-                                                                className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:disabled:bg-slate-950"
-                                                            >
-                                                                {ESTADOS_FISICOS_ITEM.map((e) => (
-                                                                    <option key={e} value={e}>{etiquetaEstadoFisicoItem(e)}</option>
-                                                                ))}
-                                                            </select>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            )}
-                        </>
+                        <div className="space-y-2">
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Activos Fijos (Equipos)</h3>
+                            {renderFijosSeccion()}
+                        </div>
                     )}
                     <div className="space-y-1">
                         <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Observaciones</Label>

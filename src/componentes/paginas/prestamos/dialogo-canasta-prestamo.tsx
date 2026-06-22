@@ -219,7 +219,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     const [errorAlta, setErrorAlta] = useState('');
     const [guardandoAlta, setGuardandoAlta] = useState(false);
 
-    const [misInventarios, setMisInventarios] = useState<Array<{ id: number; nombre: string; descripcion?: string; puedeEditarFungibles?: boolean }>>([]);
+    const [misInventarios, setMisInventarios] = useState<Array<{ id: number; nombre: string; descripcion?: string; puedeEditarFungibles?: boolean; puedeEditarFijos?: boolean }>>([]);
     const [idInventarioSeleccionado, setIdInventarioSeleccionado] = useState<string>('');
 
     useEffect(() => {
@@ -251,6 +251,13 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
         const inv = misInventarios.find((i) => String(i.id) === String(idInventarioSeleccionado));
         return inv ? inv.puedeEditarFungibles === true : false;
     }, [misInventarios, idInventarioSeleccionado]);
+
+    const tienePermisoFijos = useMemo(() => {
+        const inv = misInventarios.find((i) => String(i.id) === String(idInventarioSeleccionado));
+        return inv ? inv.puedeEditarFijos === true : false;
+    }, [misInventarios, idInventarioSeleccionado]);
+
+    const mostrarTabs = tienePermisoFungibles && tienePermisoFijos;
 
     const materialesFiltrados = useMemo(() => {
         return materiales.filter(m => {
@@ -858,7 +865,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     };
 
     const renderSeccionContenedoresDocente = () => {
-        const contenedoresFijos = contenedores.filter(c => c.tipo === 'fijo' || c.tipo === 'indefinido');
+        const contenedoresFijos = contenedores.filter(c => c.tipo === 'fijo');
         return (
             <div className="rounded-md border border-slate-200 p-4 dark:border-slate-700 bg-slate-50/30 space-y-4">
                 <div>
@@ -935,7 +942,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     };
 
     const renderSeccionMaterialesDocente = () => {
-        const contenedoresFungibles = contenedores.filter(c => c.tipo === 'fungible' || c.tipo === 'indefinido');
+        const contenedoresFungibles = contenedores.filter(c => c.tipo === 'fungible');
         return (
             <div className="rounded-md border border-slate-200 p-4 dark:border-slate-700 bg-slate-50/30 space-y-4">
                 <div>
@@ -1017,6 +1024,195 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                         })}
                     </div>
                 )}
+            </div>
+        );
+    };
+
+    const renderFijosSeccion = () => {
+        if (esDocente) {
+            return renderSeccionContenedoresDocente();
+        }
+        return (
+            <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Equipos en canasta</p>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {campos.equipos.filter((equipo) => equipo.registrado).length} de {campos.equipos.length} marcado(s) para registrar/descontar
+                    </span>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <div className="flex-1">
+                        <Combobox<OpcionSelector>
+                            items={opcionesEquipos}
+                            value={equipoSeleccionado}
+                            onValueChange={setEquipoSeleccionado}
+                            getItemValue={(opcion) => opcion.value}
+                            getItemLabel={(opcion) => opcion.label}
+                        >
+                            <ComboboxInput placeholder="Buscar equipo para agregar..." showClear />
+                            <ComboboxContent>
+                                <ComboboxEmpty>No hay equipos disponibles.</ComboboxEmpty>
+                                <ComboboxList<OpcionSelector>>
+                                    {(opcion) => (
+                                        <ComboboxItem key={opcion.value} value={opcion.value}>
+                                            {opcion.label}
+                                        </ComboboxItem>
+                                    )}
+                                </ComboboxList>
+                            </ComboboxContent>
+                        </Combobox>
+                    </div>
+                    <Boton type="button" onClick={agregarEquipo} disabled={!equipoSeleccionado} className="h-9 px-3 text-xs font-semibold">
+                        Agregar
+                    </Boton>
+                </div>
+                <div className="mt-3 space-y-2">
+                    {campos.equipos.length === 0 ? (
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">Sin equipos añadidos.</p>
+                    ) : campos.equipos.map((equipo) => (
+                        <div key={equipo.idHerramienta} className="flex items-start justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-100">{nombreEquipo(equipo.idHerramienta)}</p>
+                                <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+
+                                    {equipo.bloqueado ? (
+                                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                            Ya registrado
+                                        </span>
+                                    ) : null}
+                                </div>
+                            </div>
+                            <Boton
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                title={equipo.bloqueado ? 'No se puede quitar un equipo ya registrado' : 'Quitar equipo'}
+                                onClick={() => quitarEquipo(equipo.idHerramienta)}
+                                disabled={equipo.bloqueado}
+                                className="h-7 px-2 text-[11px]"
+                            >
+                                Quitar
+                            </Boton>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    const renderFungiblesSeccion = () => {
+        if (esDocente) {
+            return renderSeccionMaterialesDocente();
+        }
+        return (
+            <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Materiales Fungibles en canasta</p>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {campos.consumibles.length} material(es) seleccionado(s)
+                    </span>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row items-end">
+                    <div className="flex-1 min-w-0">
+                        <Label className="text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1 block">Buscar material</Label>
+                        <Combobox<OpcionSelector>
+                            items={opcionesFungibles}
+                            value={fungibleSeleccionadoId}
+                            onValueChange={setFungibleSeleccionadoId}
+                            getItemValue={(opcion) => opcion.value}
+                            getItemLabel={(opcion) => opcion.label}
+                        >
+                            <ComboboxInput placeholder="Buscar material para agregar..." showClear />
+                            <ComboboxContent>
+                                <ComboboxEmpty>No hay materiales disponibles.</ComboboxEmpty>
+                                <ComboboxList<OpcionSelector>>
+                                    {(opcion) => (
+                                        <ComboboxItem key={opcion.value} value={opcion.value}>
+                                            {opcion.label}
+                                        </ComboboxItem>
+                                    )}
+                                </ComboboxList>
+                            </ComboboxContent>
+                        </Combobox>
+                    </div>
+                    <div className="w-full sm:w-24 shrink-0">
+                        <Label className="text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1 block">Cantidad</Label>
+                        <Input
+                            type="number"
+                            min={1}
+                            value={cantFungible}
+                            onChange={(e) => setCantFungible(Math.max(1, Number(e.target.value)))}
+                            className="h-9 text-xs"
+                        />
+                    </div>
+                    <div className="w-full sm:w-48 shrink-0">
+                        <Label className="text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1 block">Motivo</Label>
+                        <Input
+                            type="text"
+                            value={motivoFungible}
+                            onChange={(e) => setMotivoFungible(e.target.value)}
+                            className="h-9 text-xs"
+                            placeholder="Motivo..."
+                        />
+                    </div>
+                    <Boton type="button" onClick={agregarFungible} disabled={!fungibleSeleccionadoId} className="h-9 px-3 text-xs font-semibold w-full sm:w-auto shrink-0">
+                        Agregar
+                    </Boton>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                    {campos.consumibles.length === 0 ? (
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">Sin materiales fungibles añadidos.</p>
+                    ) : campos.consumibles.map((c) => {
+                        const mat = materiales.find(m => m.id === c.idLote!);
+                        const descLote = mat?.lote ? `Lote: ${mat.lote}` : (mat?.serie ? `Serie: ${mat.serie}` : 'Sistema');
+                        return (
+                            <div key={c.idLote!} className="flex flex-col gap-2 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700 bg-slate-50/20">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-100">
+                                            {mat?.nombre || 'Material'}
+                                        </p>
+                                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                                            [{descLote}] • Disp: {mat?.cantidadDisponible ?? 0} {mat?.unidad ?? 'unidades'}
+                                        </p>
+                                    </div>
+                                    <Boton
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => quitarFungible(c.idLote!)}
+                                        className="h-7 px-2 text-[11px]"
+                                    >
+                                        Quitar
+                                    </Boton>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 mt-1 border-t border-slate-100 pt-2 dark:border-slate-800">
+                                    <div className="flex items-center gap-2">
+                                        <Label className="text-[10px] text-slate-500 w-16">Cant. Sol.:</Label>
+                                        <Input
+                                            type="number"
+                                            min={1}
+                                            max={mat?.cantidadDisponible}
+                                            value={c.cantidad}
+                                            onChange={(e) => cambiarCantFungible(c.idLote!, Math.max(1, Number(e.target.value)))}
+                                            className="h-7 text-[11px] w-20 px-1.5"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Label className="text-[10px] text-slate-500 w-12">Motivo:</Label>
+                                        <Input
+                                            type="text"
+                                            value={c.motivo}
+                                            onChange={(e) => cambiarMotivoFungible(c.idLote!, e.target.value)}
+                                            className="h-7 text-[11px] flex-1 px-1.5"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         );
     };
@@ -1456,269 +1652,30 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                     </div>
                 </div>
 
-                {esDocente || tienePermisoFungibles ? (
+                {mostrarTabs ? (
                     <Tabs defaultValue="equipos" className="w-full">
                         <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="equipos" className="text-xs">Activos Fijos</TabsTrigger>
                             <TabsTrigger value="materiales" className="text-xs">Activos Fungibles</TabsTrigger>
                         </TabsList>
                         <TabsContent value="equipos" className="mt-4 space-y-4">
-                            {esDocente ? (
-                                renderSeccionContenedoresDocente()
-                            ) : (
-                                <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
-                                    <div className="mb-2 flex items-center justify-between gap-3">
-                                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Equipos en canasta</p>
-                                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                                            {campos.equipos.filter((equipo) => equipo.registrado).length} de {campos.equipos.length} marcado(s) para registrar/descontar
-                                        </span>
-                                    </div>
-                                    <div className="flex flex-col gap-2 sm:flex-row">
-                                        <div className="flex-1">
-                                            <Combobox<OpcionSelector>
-                                                items={opcionesEquipos}
-                                                value={equipoSeleccionado}
-                                                onValueChange={setEquipoSeleccionado}
-                                                getItemValue={(opcion) => opcion.value}
-                                                getItemLabel={(opcion) => opcion.label}
-                                            >
-                                                <ComboboxInput placeholder="Buscar equipo para agregar..." showClear />
-                                                <ComboboxContent>
-                                                    <ComboboxEmpty>No hay equipos disponibles.</ComboboxEmpty>
-                                                    <ComboboxList<OpcionSelector>>
-                                                        {(opcion) => (
-                                                            <ComboboxItem key={opcion.value} value={opcion.value}>
-                                                                {opcion.label}
-                                                            </ComboboxItem>
-                                                        )}
-                                                    </ComboboxList>
-                                                </ComboboxContent>
-                                            </Combobox>
-                                        </div>
-                                        <Boton type="button" onClick={agregarEquipo} disabled={!equipoSeleccionado} className="h-9 px-3 text-xs font-semibold">
-                                            Agregar
-                                        </Boton>
-                                    </div>
-                                    <div className="mt-3 space-y-2">
-                                        {campos.equipos.length === 0 ? (
-                                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Sin equipos añadidos.</p>
-                                        ) : campos.equipos.map((equipo) => (
-                                            <div key={equipo.idHerramienta} className="flex items-start justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-100">{nombreEquipo(equipo.idHerramienta)}</p>
-                                                    <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-
-                                                        {equipo.bloqueado ? (
-                                                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                                                Ya registrado
-                                                            </span>
-                                                        ) : null}
-                                                    </div>
-                                                </div>
-                                                <Boton
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    title={equipo.bloqueado ? 'No se puede quitar un equipo ya registrado' : 'Quitar equipo'}
-                                                    onClick={() => quitarEquipo(equipo.idHerramienta)}
-                                                    disabled={equipo.bloqueado}
-                                                    className="h-7 px-2 text-[11px]"
-                                                >
-                                                    Quitar
-                                                </Boton>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            {renderFijosSeccion()}
                         </TabsContent>
                         <TabsContent value="materiales" className="mt-4 space-y-4">
-                            {esDocente ? (
-                                renderSeccionMaterialesDocente()
-                            ) : (
-                                <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
-                                    <div className="mb-2 flex items-center justify-between gap-3">
-                                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Materiales Fungibles en canasta</p>
-                                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                                        {campos.consumibles.length} material(es) seleccionado(s)
-                                    </span>
-                                </div>
-                                <div className="flex flex-col gap-3 sm:flex-row items-end">
-                                    <div className="flex-1 min-w-0">
-                                        <Label className="text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1 block">Buscar material</Label>
-                                        <Combobox<OpcionSelector>
-                                            items={opcionesFungibles}
-                                            value={fungibleSeleccionadoId}
-                                            onValueChange={setFungibleSeleccionadoId}
-                                            getItemValue={(opcion) => opcion.value}
-                                            getItemLabel={(opcion) => opcion.label}
-                                        >
-                                            <ComboboxInput placeholder="Buscar material para agregar..." showClear />
-                                            <ComboboxContent>
-                                                <ComboboxEmpty>No hay materiales disponibles.</ComboboxEmpty>
-                                                <ComboboxList<OpcionSelector>>
-                                                    {(opcion) => (
-                                                        <ComboboxItem key={opcion.value} value={opcion.value}>
-                                                            {opcion.label}
-                                                        </ComboboxItem>
-                                                    )}
-                                                </ComboboxList>
-                                            </ComboboxContent>
-                                        </Combobox>
-                                    </div>
-                                    <div className="w-full sm:w-24 shrink-0">
-                                        <Label className="text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1 block">Cantidad</Label>
-                                        <Input
-                                            type="number"
-                                            min={1}
-                                            value={cantFungible}
-                                            onChange={(e) => setCantFungible(Math.max(1, Number(e.target.value)))}
-                                            className="h-9 text-xs"
-                                        />
-                                    </div>
-                                    <div className="w-full sm:w-48 shrink-0">
-                                        <Label className="text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1 block">Motivo</Label>
-                                        <Input
-                                            type="text"
-                                            value={motivoFungible}
-                                            onChange={(e) => setMotivoFungible(e.target.value)}
-                                            className="h-9 text-xs"
-                                            placeholder="Motivo..."
-                                        />
-                                    </div>
-                                    <Boton type="button" onClick={agregarFungible} disabled={!fungibleSeleccionadoId} className="h-9 px-3 text-xs font-semibold w-full sm:w-auto shrink-0">
-                                        Agregar
-                                    </Boton>
-                                </div>
-
-                                <div className="mt-3 space-y-2">
-                                    {campos.consumibles.length === 0 ? (
-                                        <p className="text-[11px] text-slate-400 dark:text-slate-500">Sin materiales fungibles añadidos.</p>
-                                    ) : campos.consumibles.map((c) => {
-                                        const mat = materiales.find(m => m.id === c.idLote!);
-                                        const descLote = mat?.lote ? `Lote: ${mat.lote}` : (mat?.serie ? `Serie: ${mat.serie}` : 'Sistema');
-                                        return (
-                                            <div key={c.idLote!} className="flex flex-col gap-2 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700 bg-slate-50/20">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-100">
-                                                            {mat?.nombre || 'Material'}
-                                                        </p>
-                                                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                                                            [{descLote}] • Disp: {mat?.cantidadDisponible ?? 0} {mat?.unidad ?? 'unidades'}
-                                                        </p>
-                                                    </div>
-                                                    <Boton
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => quitarFungible(c.idLote!)}
-                                                        className="h-7 px-2 text-[11px]"
-                                                    >
-                                                        Quitar
-                                                    </Boton>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-2 mt-1 border-t border-slate-100 pt-2 dark:border-slate-800">
-                                                    <div className="flex items-center gap-2">
-                                                        <Label className="text-[10px] text-slate-500 w-16">Cant. Sol.:</Label>
-                                                        <Input
-                                                            type="number"
-                                                            min={1}
-                                                            max={mat?.cantidadDisponible}
-                                                            value={c.cantidad}
-                                                            onChange={(e) => cambiarCantFungible(c.idLote!, Math.max(1, Number(e.target.value)))}
-                                                            className="h-7 text-[11px] w-20 px-1.5"
-                                                        />
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Label className="text-[10px] text-slate-500 w-12">Motivo:</Label>
-                                                        <Input
-                                                            type="text"
-                                                            value={c.motivo}
-                                                            onChange={(e) => cambiarMotivoFungible(c.idLote!, e.target.value)}
-                                                            className="h-7 text-[11px] flex-1 px-1.5"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                            )}
+                            {renderFungiblesSeccion()}
                         </TabsContent>
                     </Tabs>
+                ) : tienePermisoFungibles ? (
+                    <div className="space-y-4 mt-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Activos Fungibles</Label>
+                        {renderFungiblesSeccion()}
+                    </div>
                 ) : (
-                    esDocente ? (
-                        renderSeccionContenedoresDocente()
-                    ) : (
-                        <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
-                            <div className="mb-2 flex items-center justify-between gap-3">
-                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Equipos en canasta</p>
-                                <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                                    {campos.equipos.filter((equipo) => equipo.registrado).length} de {campos.equipos.length} marcado(s) para registrar/descontar
-                                </span>
-                            </div>
-                            <div className="flex flex-col gap-2 sm:flex-row">
-                                <div className="flex-1">
-                                    <Combobox<OpcionSelector>
-                                        items={opcionesEquipos}
-                                        value={equipoSeleccionado}
-                                        onValueChange={setEquipoSeleccionado}
-                                        getItemValue={(opcion) => opcion.value}
-                                        getItemLabel={(opcion) => opcion.label}
-                                    >
-                                        <ComboboxInput placeholder="Buscar equipo para agregar..." showClear />
-                                        <ComboboxContent>
-                                            <ComboboxEmpty>No hay equipos disponibles.</ComboboxEmpty>
-                                            <ComboboxList<OpcionSelector>>
-                                                {(opcion) => (
-                                                    <ComboboxItem key={opcion.value} value={opcion.value}>
-                                                        {opcion.label}
-                                                    </ComboboxItem>
-                                                )}
-                                            </ComboboxList>
-                                        </ComboboxContent>
-                                    </Combobox>
-                                </div>
-                                <Boton type="button" onClick={agregarEquipo} disabled={!equipoSeleccionado} className="h-9 px-3 text-xs font-semibold">
-                                    Agregar
-                                </Boton>
-                            </div>
-                            <div className="mt-3 space-y-2">
-                                {campos.equipos.length === 0 ? (
-                                    <p className="text-[11px] text-slate-400 dark:text-slate-500">Sin equipos añadidos.</p>
-                                ) : campos.equipos.map((equipo) => (
-                                    <div key={equipo.idHerramienta} className="flex items-start justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-100">{nombreEquipo(equipo.idHerramienta)}</p>
-                                            <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-
-                                                {equipo.bloqueado ? (
-                                                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                                        Ya registrado
-                                                    </span>
-                                                ) : null}
-                                            </div>
-                                        </div>
-                                        <Boton
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            title={equipo.bloqueado ? 'No se puede quitar un equipo ya registrado' : 'Quitar equipo'}
-                                            onClick={() => quitarEquipo(equipo.idHerramienta)}
-                                            disabled={equipo.bloqueado}
-                                            className="h-7 px-2 text-[11px]"
-                                        >
-                                            Quitar
-                                        </Boton>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )
-                )
-            }
+                    <div className="space-y-4 mt-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Activos Fijos</Label>
+                        {renderFijosSeccion()}
+                    </div>
+                )}
 
 
 
