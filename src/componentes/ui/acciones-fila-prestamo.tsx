@@ -1,10 +1,11 @@
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Eye } from 'lucide-react';
 import { Boton } from '@/componentes/ui/button';
 
 interface Props {
     onEditar: () => void;
     onExtender: () => void;
     onDevolver: () => void;
+    onVer?: () => void;
     deshabilitarExtenderYDevolver?: boolean;
 }
 
@@ -12,10 +13,24 @@ export const AccionesFilaPrestamoUi = ({
     onEditar,
     onExtender,
     onDevolver,
+    onVer,
     deshabilitarExtenderYDevolver = false,
 }: Props) => {
     return (
         <div className="flex justify-center gap-1.5">
+            {onVer && (
+                <Boton
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onVer}
+                    className="h-7 gap-1 px-2 py-1 text-[11px] border-slate-350 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900/60"
+                >
+                    <Eye className="h-3 w-3 text-slate-500 dark:text-slate-400" />
+                    Ver
+                </Boton>
+            )}
+
             <Boton
                 type="button"
                 variant="outline"
@@ -50,4 +65,4 @@ export const AccionesFilaPrestamoUi = ({
             </Boton>
         </div>
     );
-};
+};

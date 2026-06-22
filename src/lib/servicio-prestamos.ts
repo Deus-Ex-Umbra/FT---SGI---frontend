@@ -452,3 +452,59 @@ export const cargarHistorialPrestamoDesdeBackend = async (id: string): Promise<R
 
     return (await resp.json()) as RegistroHistorialPrestamoApi[];
 };
+
+export const obtenerDetallesPrestamoEnBackend = async (id: string): Promise<PrestamoCanastaRegistro> => {
+    const resp = await fetch(`${API_BASE}/prestamos/canastas/${encodeURIComponent(id)}`, {
+        headers: authHeaders(),
+    });
+    if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || 'No se pudieron obtener los detalles del préstamo');
+    }
+    const c = (await resp.json()) as PrestamoCanastaApi;
+    return {
+        id: String(c.id),
+        grupoCanasta: c.grupoCanasta,
+        codigo: c.codigo,
+        idsPrestamo: c.idsPrestamo,
+        carnetEstudiante: c.carnetEstudiante,
+        carnetsEstudiantes: c.carnetsEstudiantes,
+        estudiantes: c.estudiantes?.map(e => ({
+            ...e,
+            carnetRetenido: (e as any).carnetRetenido,
+        })),
+        idDocente: c.idDocente,
+        docente: c.docente,
+        fechaPrestamo: soloFecha(c.fechaPrestamo) || '',
+        fechaDevolucion: soloFecha(c.fechaDevolucion),
+        estado: c.estado as EstadoPrestamo,
+        observaciones: c.observaciones,
+        totalActivos: c.totalActivos,
+        totalConsumibles: c.totalConsumibles,
+        totalCosas: c.totalCosas,
+        cosas: c.cosas?.map((co) => ({
+            idHerramienta: co.idHerramienta,
+            codigoInventario: co.codigoInventario,
+            nombre: co.nombre,
+            registrado: co.registrado,
+            estadoFisicoEntrega: (co as any).estadoFisicoEntrega,
+            estadoFisicoDevolucion: (co as any).estadoFisicoDevolucion,
+        })),
+        consumibles: c.consumibles?.map((con) => ({
+            idLote: con.idLote,
+            idActivoFungible: (con as any).idActivoFungible ?? null,
+            idContenedor: (con as any).idContenedor ?? null,
+            lote: con.lote,
+            material: con.material,
+            highlight: (con as any).highlight,
+            cantidadSolicitada: (con as any).cantidadSolicitada ?? con.cantidad,
+            cantidadDespachada: (con as any).cantidadDespachada ?? con.cantidad,
+            cantidadDevuelta: (con as any).cantidadDevuelta,
+            motivo: con.motivo,
+            estadoDevuelto: (con as any).estadoDevuelto,
+            fecha: con.fecha,
+        })),
+        motivoRechazo: (c as any).motivoRechazo,
+    };
+};
+

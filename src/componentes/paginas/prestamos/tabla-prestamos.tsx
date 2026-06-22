@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { ClipboardList, Plus } from 'lucide-react';
 import { AccionesFilaPrestamoUi } from '@/componentes/ui/acciones-fila-prestamo';
 import { Boton } from '@/componentes/ui/button';
 import type { Prestamo, EstadoPrestamo, ItemActivoResumen, Estudiante } from '@/tipos/inventario';
 import { formatearFechaHora } from '@/utilidades/fechas';
+import { DialogoVerPrestamo } from '@/componentes/prestamos/dialogo-ver-prestamo';
+
 
 interface Props {
     prestamos: Prestamo[];
@@ -62,6 +65,7 @@ export const TablaPrestamos = ({
     onExtender,
     onEditar,
 }: Props) => {
+    const [prestamoParaVer, setPrestamoParaVer] = useState<Prestamo | null>(null);
     const resolverHerramienta = (id: string) => herramientas.find(h => h.id === id);
     const resolverEstudiante = (carnet: string) => estudiantes.find(e => e.carnet === carnet);
 
@@ -174,6 +178,7 @@ export const TablaPrestamos = ({
                                             onEditar={() => onEditar(p)}
                                             onExtender={() => onExtender(p)}
                                             onDevolver={() => onDevolver(p)}
+                                            onVer={() => setPrestamoParaVer(p)}
                                             deshabilitarExtenderYDevolver={p.estado === 'devuelto' || p.estado === 'devuelto_fuera_de_fecha_limite'}
                                         />
                                     </td>
@@ -183,7 +188,13 @@ export const TablaPrestamos = ({
                     </tbody>
                 </table>
             </div>
+
+            {prestamoParaVer && (
+                <DialogoVerPrestamo
+                    prestamoId={prestamoParaVer.grupoCanasta ?? `IND-${prestamoParaVer.id}`}
+                    onCerrar={() => setPrestamoParaVer(null)}
+                />
+            )}
         </div>
     );
 };
-
