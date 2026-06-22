@@ -163,7 +163,7 @@ export const ProveedorInventario = ({ children }: { children: React.ReactNode })
             const promesas = [
                 esAdminOEncargado ? cargarContenedoresCompartidosDesdeBackend() : Promise.resolve([]),
                 cargarActivosDesdeBackend(),
-                esAdminOEncargado ? cargarMaterialesDesdeBackend() : Promise.resolve({ contenedores: [], catalogo: [] }),
+                (esAdminOEncargado || rol === 'docente') ? cargarMaterialesDesdeBackend() : Promise.resolve({ contenedores: [], catalogo: [] }),
                 cargarPrestamosDesdeBackend(),
                 (esAdminOEncargado || rol === 'docente') ? cargarEstudiantesDesdeBackend() : Promise.resolve([]),
                 cargarDocentesDesdeBackend(),
