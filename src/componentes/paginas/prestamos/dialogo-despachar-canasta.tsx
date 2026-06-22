@@ -36,18 +36,22 @@ interface FilaDespachoFijo {
 }
 
 interface FilaDespachoFungible {
-    idLote: string;
+    idFila: string;
+    idLote: string | null;
+    idActivoFungible: number | null;
+    idContenedor: number | null;
     lote: string;
     material: string;
     cantidadSolicitada: number;
     cantidadDespachada: number;
+    unidad?: string;
 }
 
 export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, onCerrar, onConfirmar }: Props) => {
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState('');
     const [herramientaSeleccionadaId, setHerramientaSeleccionadaId] = useState('');
-    const { materiales } = useInventario();
+    const { materiales, contenedoresMateriales } = useInventario();
     const [misInventarios, setMisInventarios] = useState<Array<{ id: number; nombre: string; puedeEditarFungibles?: boolean }>>([]);
 
     useEffect(() => {
@@ -128,15 +132,42 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     const filasInicialesFungibles = useMemo<FilaDespachoFungible[]>(() => {
         return (canasta.consumibles ?? []).map((c) => {
             const cantidadSol = Number(c.cantidadSolicitada ?? 0);
+            let idActivoFungibleNum = c.idActivoFungible ? Number(c.idActivoFungible) : null;
+            let unidad = 'uds';
+            
+            if (!idActivoFungibleNum && c.idLote) {
+                for (const cont of contenedoresMateriales || []) {
+                    for (const mat of cont.materiales) {
+                        if (mat.subinstancias.some(sub => String(sub.id) === String(c.idLote))) {
+                            idActivoFungibleNum = Number(mat.id);
+                            unidad = mat.unidad || 'uds';
+                            break;
+                        }
+                    }
+                }
+            } else if (idActivoFungibleNum) {
+                for (const cont of contenedoresMateriales || []) {
+                    const mat = cont.materiales.find(m => Number(m.id) === idActivoFungibleNum);
+                    if (mat && mat.unidad) {
+                        unidad = mat.unidad;
+                        break;
+                    }
+                }
+            }
+
             return {
-                idLote: c.idLote,
-                lote: c.lote || 'Lote',
+                idFila: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(7),
+                idLote: c.idLote || null,
+                idActivoFungible: idActivoFungibleNum,
+                idContenedor: c.idContenedor ? Number(c.idContenedor) : null,
+                lote: c.lote || (c.idLote ? 'Lote' : ''),
                 material: c.material || 'Material',
                 cantidadSolicitada: cantidadSol,
-                cantidadDespachada: cantidadSol,
+                cantidadDespachada: c.cantidadDespachada ?? cantidadSol,
+                unidad,
             };
         });
-    }, [canasta.consumibles]);
+    }, [canasta.consumibles, contenedoresMateriales]);
 
     const [filasFungibles, setFilasFungibles] = useState<FilaDespachoFungible[]>(filasInicialesFungibles);
 
@@ -283,9 +314,75 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
         );
     };
 
-    const handleCantidadFungibleChange = (idLote: string, cantidad: number) => {
+    const handleCantidadFungibleChange = (idFila: string, cantidad: number) => {
         setFilasFungibles((prev) =>
-            prev.map((f) => (f.idLote === idLote ? { ...f, cantidadDespachada: Math.max(0, cantidad) } : f))
+            prev.map((f) => (f.idFila === idFila ? { ...f, cantidadDespachada: Math.max(0, cantidad) } : f))
+        );
+    };
+
+    const obtenerLotesDisponibles = (idActivoFungible: number | string | null | undefined, idContenedor: number | string | null | undefined) => {
+        if (!idActivoFungible) return [];
+        const lotes: Array<{ id: string; lote: string; serie: string; cantidadDisponible: number; nombreContenedor: string; idContenedor: string }> = [];
+        
+        for (const cont of contenedoresMateriales || []) {
+            const mat = cont.materiales.find(m => String(m.id) === String(idActivoFungible));
+            if (mat) {
+                for (const sub of mat.subinstancias) {
+                    lotes.push({
+                        id: sub.id,
+                        lote: sub.lote || 'Sin lote',
+                        serie: sub.serie || 'Sin serie',
+                        cantidadDisponible: sub.cantidadDisponible || 0,
+                        nombreContenedor: cont.nombre,
+                        idContenedor: cont.id
+                    });
+                }
+            }
+        }
+        
+        if (idContenedor) {
+            lotes.sort((a, b) => {
+                const aIsReq = String(a.idContenedor) === String(idContenedor);
+                const bIsReq = String(b.idContenedor) === String(idContenedor);
+                if (aIsReq && !bIsReq) return -1;
+                if (!aIsReq && bIsReq) return 1;
+                return 0;
+            });
+        }
+        
+        return lotes;
+    };
+
+    const getOpcionesLotesFungibles = (fila: FilaDespachoFungible) => {
+        const lotes = obtenerLotesDisponibles(fila.idActivoFungible, fila.idContenedor);
+        return lotes.map(l => ({
+            value: l.id,
+            label: `[Cont: ${l.nombreContenedor}] Lote: ${l.lote} | Serie: ${l.serie} (${l.cantidadDisponible} ${fila.unidad || 'uds'} disp.)`
+        }));
+    };
+
+    const handleAsignarLoteFungible = (idFila: string, loteId: string) => {
+        let loteNombre = 'Lote';
+        for (const cont of contenedoresMateriales || []) {
+            for (const mat of cont.materiales) {
+                const sub = mat.subinstancias.find(s => String(s.id) === String(loteId));
+                if (sub) {
+                    loteNombre = sub.lote || sub.serie || 'Lote';
+                    break;
+                }
+            }
+        }
+        
+        setFilasFungibles((prev) =>
+            prev.map((f) =>
+                f.idFila === idFila
+                    ? {
+                          ...f,
+                          idLote: loteId,
+                          lote: loteNombre,
+                      }
+                    : f
+            )
         );
     };
 
@@ -313,6 +410,12 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
             return;
         }
 
+        const fungiblesSinLote = filasFungibles.filter(f => f.idLote === null);
+        if (fungiblesSinLote.length > 0) {
+            setError('Debes asignar un lote físico a todos los materiales fungibles solicitados antes de despachar.');
+            return;
+        }
+
         if (carnetsRetenidos.length === 0) {
             setError('Debes validar que el CU se retenga (selecciona al menos un estudiante para la retención del CU).');
             return;
@@ -328,7 +431,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                     estadoFisicoEntrega: f.estadoFisicoEntrega,
                 })),
                 consumibles: filasFungibles.map((f) => ({
-                    idLote: f.idLote,
+                    idLote: f.idLote!,
                     cantidad: f.cantidadDespachada,
                 })),
                 carnetsRetenidos,
@@ -574,23 +677,80 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                                 {filasFungibles.map((fila) => (
-                                                    <tr key={fila.idLote} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                                                    <tr key={fila.idFila} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                                          <td className="px-3 py-2 min-w-0">
-                                                             <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[200px] truncate" title={fila.material}>{fila.material}</div>
-                                                             <div className="text-[10px] text-slate-400">Lote: {fila.lote} | ID: {fila.idLote}</div>
+                                                             {fila.idLote === null ? (
+                                                                 <div className="flex flex-col gap-1.5">
+                                                                     <span className="font-semibold text-slate-500 italic dark:text-slate-400">
+                                                                         [Solicitado Genérico] {fila.material}
+                                                                     </span>
+                                                                     <div className="flex items-center gap-1.5 max-w-xs">
+                                                                         <Combobox<{ value: string; label: string }>
+                                                                             items={getOpcionesLotesFungibles(fila)}
+                                                                             value=""
+                                                                             onValueChange={(val) => {
+                                                                                 if (!val) return;
+                                                                                 handleAsignarLoteFungible(fila.idFila, val);
+                                                                             }}
+                                                                             getItemValue={(item) => item.value}
+                                                                             getItemLabel={(item) => item.label}
+                                                                         >
+                                                                             <ComboboxInput placeholder="Asignar lote físico..." showClear className="h-8 text-xs" />
+                                                                             <ComboboxContent>
+                                                                                 <ComboboxEmpty>No hay lotes físicos disponibles.</ComboboxEmpty>
+                                                                                 <ComboboxList<{ value: string; label: string }>>
+                                                                                     {(opcion) => (
+                                                                                         <ComboboxItem key={opcion.value} value={opcion.value}>
+                                                                                             {opcion.label}
+                                                                                         </ComboboxItem>
+                                                                                     )}
+                                                                                 </ComboboxList>
+                                                                             </ComboboxContent>
+                                                                         </Combobox>
+                                                                     </div>
+                                                                 </div>
+                                                             ) : (
+                                                                 <div className="flex flex-col">
+                                                                     <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[200px] truncate" title={fila.material}>
+                                                                         {fila.material}
+                                                                     </div>
+                                                                     <div className="flex items-center gap-2">
+                                                                         <span className="text-[10px] text-slate-400">
+                                                                             Lote: {fila.lote} | ID: {fila.idLote}
+                                                                         </span>
+                                                                         {fila.idActivoFungible !== null && (
+                                                                             <Boton
+                                                                                 type="button"
+                                                                                 variant="ghost"
+                                                                                 size="icon"
+                                                                                 onClick={() => {
+                                                                                     setFilasFungibles(prev => prev.map(f => f.idFila === fila.idFila ? { ...f, idLote: null, lote: '' } : f));
+                                                                                 }}
+                                                                                 className="h-4 w-4 p-0 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20 rounded shrink-0"
+                                                                                 title="Desasignar lote físico"
+                                                                             >
+                                                                                 <Trash2 className="h-3 w-3" />
+                                                                             </Boton>
+                                                                         )}
+                                                                     </div>
+                                                                 </div>
+                                                             )}
                                                          </td>
                                                         <td className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-300">
-                                                            {fila.cantidadSolicitada}
+                                                             {fila.cantidadSolicitada} {fila.unidad || 'uds'}
                                                         </td>
                                                         <td className="px-3 py-2">
-                                                            <input
-                                                                type="number"
-                                                                title="Cantidad a entregar"
-                                                                value={fila.cantidadDespachada}
-                                                                min={0}
-                                                                onChange={(e) => handleCantidadFungibleChange(fila.idLote, Number(e.target.value))}
-                                                                className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-center text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                                                            />
+                                                            <div className="flex items-center gap-1.5">
+                                                                <input
+                                                                    type="number"
+                                                                    title="Cantidad a entregar"
+                                                                    value={fila.cantidadDespachada}
+                                                                    min={0}
+                                                                    onChange={(e) => handleCantidadFungibleChange(fila.idFila, Number(e.target.value))}
+                                                                    className="h-8 w-20 rounded-md border border-slate-200 bg-white px-2 text-center text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                                                                />
+                                                                <span className="text-xs text-slate-500 font-medium dark:text-slate-400">{fila.unidad || 'uds'}</span>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -786,23 +946,80 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                                 {filasFungibles.map((fila) => (
-                                                    <tr key={fila.idLote} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                                                    <tr key={fila.idFila} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                                          <td className="px-3 py-2 min-w-0">
-                                                             <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[200px] truncate" title={fila.material}>{fila.material}</div>
-                                                             <div className="text-[10px] text-slate-400">Lote: {fila.lote} | ID: {fila.idLote}</div>
+                                                             {fila.idLote === null ? (
+                                                                 <div className="flex flex-col gap-1.5">
+                                                                     <span className="font-semibold text-slate-500 italic dark:text-slate-400">
+                                                                         [Solicitado Genérico] {fila.material}
+                                                                     </span>
+                                                                     <div className="flex items-center gap-1.5 max-w-xs">
+                                                                         <Combobox<{ value: string; label: string }>
+                                                                             items={getOpcionesLotesFungibles(fila)}
+                                                                             value=""
+                                                                             onValueChange={(val) => {
+                                                                                 if (!val) return;
+                                                                                 handleAsignarLoteFungible(fila.idFila, val);
+                                                                             }}
+                                                                             getItemValue={(item) => item.value}
+                                                                             getItemLabel={(item) => item.label}
+                                                                         >
+                                                                             <ComboboxInput placeholder="Asignar lote físico..." showClear className="h-8 text-xs" />
+                                                                             <ComboboxContent>
+                                                                                 <ComboboxEmpty>No hay lotes físicos disponibles.</ComboboxEmpty>
+                                                                                 <ComboboxList<{ value: string; label: string }>>
+                                                                                     {(opcion) => (
+                                                                                         <ComboboxItem key={opcion.value} value={opcion.value}>
+                                                                                             {opcion.label}
+                                                                                         </ComboboxItem>
+                                                                                     )}
+                                                                                 </ComboboxList>
+                                                                             </ComboboxContent>
+                                                                         </Combobox>
+                                                                     </div>
+                                                                 </div>
+                                                             ) : (
+                                                                 <div className="flex flex-col">
+                                                                     <div className="font-semibold text-slate-800 dark:text-slate-100 max-w-[200px] truncate" title={fila.material}>
+                                                                         {fila.material}
+                                                                     </div>
+                                                                     <div className="flex items-center gap-2">
+                                                                         <span className="text-[10px] text-slate-400">
+                                                                             Lote: {fila.lote} | ID: {fila.idLote}
+                                                                         </span>
+                                                                         {fila.idActivoFungible !== null && (
+                                                                             <Boton
+                                                                                 type="button"
+                                                                                 variant="ghost"
+                                                                                 size="icon"
+                                                                                 onClick={() => {
+                                                                                     setFilasFungibles(prev => prev.map(f => f.idFila === fila.idFila ? { ...f, idLote: null, lote: '' } : f));
+                                                                                 }}
+                                                                                 className="h-4 w-4 p-0 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20 rounded shrink-0"
+                                                                                 title="Desasignar lote físico"
+                                                                             >
+                                                                                 <Trash2 className="h-3 w-3" />
+                                                                             </Boton>
+                                                                         )}
+                                                                     </div>
+                                                                 </div>
+                                                             )}
                                                          </td>
                                                         <td className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-300">
-                                                            {fila.cantidadSolicitada}
+                                                             {fila.cantidadSolicitada} {fila.unidad || 'uds'}
                                                         </td>
                                                         <td className="px-3 py-2">
-                                                            <input
-                                                                type="number"
-                                                                title="Cantidad a entregar"
-                                                                value={fila.cantidadDespachada}
-                                                                min={0}
-                                                                onChange={(e) => handleCantidadFungibleChange(fila.idLote, Number(e.target.value))}
-                                                                className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-center text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                                                            />
+                                                            <div className="flex items-center gap-1.5">
+                                                                <input
+                                                                    type="number"
+                                                                    title="Cantidad a entregar"
+                                                                    value={fila.cantidadDespachada}
+                                                                    min={0}
+                                                                    onChange={(e) => handleCantidadFungibleChange(fila.idFila, Number(e.target.value))}
+                                                                    className="h-8 w-20 rounded-md border border-slate-200 bg-white px-2 text-center text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                                                                />
+                                                                <span className="text-xs text-slate-500 font-medium dark:text-slate-400">{fila.unidad || 'uds'}</span>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}

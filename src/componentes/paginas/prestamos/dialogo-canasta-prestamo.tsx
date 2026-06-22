@@ -118,7 +118,7 @@ const construirCamposCanasta = (canasta?: PrestamoCanastaRegistro, docentePredet
 };
 
 export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Props) => {
-    const { estudiantes, docentes, herramientas, prestamos, recargarDatos, agregarEstudiante, agregarDocente, materias, materiales } = useInventario();
+    const { estudiantes, docentes, herramientas, prestamos, recargarDatos, agregarEstudiante, agregarDocente, materias, materiales, contenedoresMateriales } = useInventario();
     const usuarioActual = useMemo(() => obtenerUsuarioActual(), []);
     const esAdministrador = usuarioActual?.rol === 'administrador';
     const esDocente = usuarioActual?.rol === 'docente';
@@ -137,7 +137,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     const [equipoSeleccionado, setEquipoSeleccionado] = useState('');
     const [error, setError] = useState('');
 
-    const [contenedores, setContenedores] = useState<Array<{ id: number; nombre: string; ubicacion: string }>>([]);
+    const [contenedores, setContenedores] = useState<Array<{ id: number; nombre: string; ubicacion: string; tipo?: string }>>([]);
     const [cargandoContenedores, setCargandoContenedores] = useState(false);
     const [cantidadesContenedores, setCantidadesContenedores] = useState<Record<number, number>>({});
 
@@ -790,7 +790,13 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                     observaciones: campos.observaciones,
                     items: esDocente ? [] : payloadItems,
                     contenedores: payloadContenedores,
-                    materiales: campos.consumibles.map(c => ({ idLote: c.idLote, cantidad: c.cantidad, motivo: c.motivo })),
+                    materiales: campos.consumibles.map(c => ({
+                        idLote: c.idLote || null,
+                        idActivoFungible: c.idActivoFungible || null,
+                        idContenedor: c.idContenedor || null,
+                        cantidad: c.cantidad,
+                        motivo: c.motivo
+                    })),
                     carnetsRetenidos,
                 });
             } else {
@@ -800,7 +806,13 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                     idDocente: Number(campos.idDocente),
                     items: esDocente ? [] : payloadItems,
                     contenedores: payloadContenedores,
-                    materiales: campos.consumibles.map(c => ({ idLote: c.idLote, cantidad: c.cantidad, motivo: c.motivo })),
+                    materiales: campos.consumibles.map(c => ({
+                        idLote: c.idLote || null,
+                        idActivoFungible: c.idActivoFungible || null,
+                        idContenedor: c.idContenedor || null,
+                        cantidad: c.cantidad,
+                        motivo: c.motivo
+                    })),
                     fechaPrestamo: campos.fechaPrestamo,
                     fechaDevolucion: campos.fechaDevolucion,
                     observaciones: campos.observaciones,
@@ -846,6 +858,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     };
 
     const renderSeccionContenedoresDocente = () => {
+        const contenedoresFijos = contenedores.filter(c => c.tipo === 'fijo' || c.tipo === 'indefinido');
         return (
             <div className="rounded-md border border-slate-200 p-4 dark:border-slate-700 bg-slate-50/30 space-y-4">
                 <div>
@@ -856,11 +869,11 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                     <div className="flex items-center justify-center py-6 text-xs text-slate-500">
                         <span className="animate-pulse">Cargando tipos de equipos disponibles...</span>
                     </div>
-                ) : contenedores.length === 0 ? (
+                ) : contenedoresFijos.length === 0 ? (
                     <p className="text-xs text-slate-400 py-4 text-center">No hay tipos de equipos disponibles en este inventario.</p>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {contenedores.map((cont) => {
+                        {contenedoresFijos.map((cont) => {
                             const qty = cantidadesContenedores[cont.id] ?? 0;
                             return (
                                 <div key={cont.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/40 hover:border-slate-300 transition-colors">
@@ -911,6 +924,141 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                                         >
                                             +
                                         </Boton>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderSeccionMaterialesDocente = () => {
+        const contenedoresFungibles = contenedores.filter(c => c.tipo === 'fungible' || c.tipo === 'indefinido');
+        return (
+            <div className="rounded-md border border-slate-200 p-4 dark:border-slate-700 bg-slate-50/30 space-y-4">
+                <div>
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Materiales Fungibles Solicitados</h3>
+                    <p className="text-xs text-slate-500">Selecciona los materiales que necesitas y la cantidad solicitada.</p>
+                </div>
+                {cargandoContenedores ? (
+                    <div className="flex items-center justify-center py-6 text-xs text-slate-500">
+                        <span className="animate-pulse">Cargando contenedores de materiales...</span>
+                    </div>
+                ) : contenedoresFungibles.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-4 text-center">No hay contenedores de materiales disponibles en este inventario.</p>
+                ) : (
+                    <div className="space-y-4">
+                        {contenedoresFungibles.map((cont) => {
+                            const cm = contenedoresMateriales.find(c => String(c.id) === String(cont.id));
+                            const materialesEnCont = cm?.materiales ?? [];
+                            if (materialesEnCont.length === 0) return null;
+
+                            return (
+                                <div key={cont.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
+                                    <div className="border-b border-slate-100 pb-2 mb-3 dark:border-slate-800">
+                                        <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400">{cont.nombre}</p>
+                                        <p className="text-[10px] text-slate-400 dark:text-slate-500">{cont.ubicacion || 'Ubicación no especificada'}</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {materialesEnCont.map((mat) => {
+                                            const itemSel = campos.consumibles.find(
+                                                (c) => c.idActivoFungible === Number(mat.id) && c.idContenedor === Number(cont.id)
+                                            );
+                                            const seleccionado = !!itemSel;
+                                            const cantidadVal = itemSel ? itemSel.cantidad : (mat.promedioSolicitado || 1);
+                                            const motivoVal = itemSel ? itemSel.motivo : 'Uso en clase';
+
+                                            return (
+                                                <div key={mat.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                                                    <div className="flex items-center gap-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            id={`chk-${cont.id}-${mat.id}`}
+                                                            checked={seleccionado}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setCampos((prev) => ({
+                                                                        ...prev,
+                                                                        consumibles: [
+                                                                            ...prev.consumibles,
+                                                                            {
+                                                                                idLote: null as any,
+                                                                                idActivoFungible: Number(mat.id),
+                                                                                idContenedor: Number(cont.id),
+                                                                                cantidad: mat.promedioSolicitado || 1,
+                                                                                motivo: 'Uso en clase',
+                                                                            },
+                                                                        ],
+                                                                    }));
+                                                                } else {
+                                                                    setCampos((prev) => ({
+                                                                        ...prev,
+                                                                        consumibles: prev.consumibles.filter(
+                                                                            (c) => !(c.idActivoFungible === Number(mat.id) && c.idContenedor === Number(cont.id))
+                                                                        ),
+                                                                    }));
+                                                                }
+                                                            }}
+                                                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                        />
+                                                        <label htmlFor={`chk-${cont.id}-${mat.id}`} className="cursor-pointer select-none">
+                                                            <p className="text-xs font-medium text-slate-800 dark:text-slate-200">{mat.nombre}</p>
+                                                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                                                                Sugerido promedio: {mat.promedioSolicitado || 1} {mat.unidad}
+                                                            </p>
+                                                        </label>
+                                                    </div>
+
+                                                    {seleccionado && (
+                                                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 ml-7 sm:ml-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] text-slate-400 dark:text-slate-500">Cant:</span>
+                                                                <Input
+                                                                    type="number"
+                                                                    min={1}
+                                                                    value={cantidadVal}
+                                                                    onChange={(e) => {
+                                                                        const val = Math.max(1, Number(e.target.value) || 1);
+                                                                        setCampos((prev) => ({
+                                                                            ...prev,
+                                                                            consumibles: prev.consumibles.map((c) =>
+                                                                                c.idActivoFungible === Number(mat.id) && c.idContenedor === Number(cont.id)
+                                                                                    ? { ...c, cantidad: val }
+                                                                                    : c
+                                                                            ),
+                                                                        }));
+                                                                    }}
+                                                                    className="h-8 w-16 text-center text-xs p-1"
+                                                                />
+                                                                <span className="text-xs text-slate-500 font-medium dark:text-slate-400 shrink-0">{mat.unidad}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 flex-1 min-w-[120px]">
+                                                                <span className="text-[10px] text-slate-400 dark:text-slate-500">Motivo:</span>
+                                                                <Input
+                                                                    type="text"
+                                                                    value={motivoVal}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setCampos((prev) => ({
+                                                                            ...prev,
+                                                                            consumibles: prev.consumibles.map((c) =>
+                                                                                c.idActivoFungible === Number(mat.id) && c.idContenedor === Number(cont.id)
+                                                                                    ? { ...c, motivo: val }
+                                                                                    : c
+                                                                            ),
+                                                                        }));
+                                                                    }}
+                                                                    className="h-8 text-xs px-2 flex-1"
+                                                                    placeholder="Uso en clase..."
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             );
@@ -1356,7 +1504,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                     </div>
                 </div>
 
-                {tienePermisoFungibles ? (
+                {esDocente || tienePermisoFungibles ? (
                     <Tabs defaultValue="equipos" className="w-full">
                         <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="equipos" className="text-xs">Activos Fijos</TabsTrigger>
@@ -1433,9 +1581,12 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                             )}
                         </TabsContent>
                         <TabsContent value="materiales" className="mt-4 space-y-4">
-                            <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
-                                <div className="mb-2 flex items-center justify-between gap-3">
-                                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Materiales Fungibles en canasta</p>
+                            {esDocente ? (
+                                renderSeccionMaterialesDocente()
+                            ) : (
+                                <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
+                                    <div className="mb-2 flex items-center justify-between gap-3">
+                                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Materiales Fungibles en canasta</p>
                                     <span className="text-[11px] text-slate-500 dark:text-slate-400">
                                         {campos.consumibles.length} material(es) seleccionado(s)
                                     </span>
@@ -1492,10 +1643,10 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                                     {campos.consumibles.length === 0 ? (
                                         <p className="text-[11px] text-slate-400 dark:text-slate-500">Sin materiales fungibles añadidos.</p>
                                     ) : campos.consumibles.map((c) => {
-                                        const mat = materiales.find(m => m.id === c.idLote);
+                                        const mat = materiales.find(m => m.id === c.idLote!);
                                         const descLote = mat?.lote ? `Lote: ${mat.lote}` : (mat?.serie ? `Serie: ${mat.serie}` : 'Sistema');
                                         return (
-                                            <div key={c.idLote} className="flex flex-col gap-2 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700 bg-slate-50/20">
+                                            <div key={c.idLote!} className="flex flex-col gap-2 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700 bg-slate-50/20">
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="min-w-0 flex-1">
                                                         <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-100">
@@ -1509,7 +1660,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={() => quitarFungible(c.idLote)}
+                                                        onClick={() => quitarFungible(c.idLote!)}
                                                         className="h-7 px-2 text-[11px]"
                                                     >
                                                         Quitar
@@ -1523,7 +1674,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                                                             min={1}
                                                             max={mat?.cantidadDisponible}
                                                             value={c.cantidad}
-                                                            onChange={(e) => cambiarCantFungible(c.idLote, Math.max(1, Number(e.target.value)))}
+                                                            onChange={(e) => cambiarCantFungible(c.idLote!, Math.max(1, Number(e.target.value)))}
                                                             className="h-7 text-[11px] w-20 px-1.5"
                                                         />
                                                     </div>
@@ -1532,7 +1683,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                                                         <Input
                                                             type="text"
                                                             value={c.motivo}
-                                                            onChange={(e) => cambiarMotivoFungible(c.idLote, e.target.value)}
+                                                            onChange={(e) => cambiarMotivoFungible(c.idLote!, e.target.value)}
                                                             className="h-7 text-[11px] flex-1 px-1.5"
                                                         />
                                                     </div>
@@ -1542,6 +1693,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                                     })}
                                 </div>
                             </div>
+                            )}
                         </TabsContent>
                     </Tabs>
                 ) : (

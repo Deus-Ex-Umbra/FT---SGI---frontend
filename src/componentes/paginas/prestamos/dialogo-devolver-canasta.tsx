@@ -130,7 +130,7 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
         return (canasta.consumibles ?? []).map((c) => {
             const cantidadDesp = Number(c.cantidadDespachada ?? c.cantidadSolicitada ?? 0);
             return {
-                idLote: c.idLote,
+                idLote: c.idLote || '',
                 lote: c.lote || 'Lote',
                 material: c.material || 'Material',
                 cantidadDespachada: cantidadDesp,

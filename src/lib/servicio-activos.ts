@@ -319,25 +319,29 @@ export const cargarMaterialesDesdeBackend = async (): Promise<{ contenedores: Co
             tipoIdentificacion: (mat.tipoIdentificacion ?? 'lote') as MaterialFungible['tipoIdentificacion'],
             subinstancias: [],
             idInventario: mat.idInventario,
+            promedioSolicitado: mat.promedioSolicitado ?? 1,
+            contenedor: mat.contenedor ? {
+                id: Number(mat.contenedor.id),
+                nombre: mat.contenedor.nombre,
+                ubicacion: mat.contenedor.ubicacion,
+                tipo: mat.contenedor.tipo,
+            } : null,
         }))
         .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
     const porContenedor = new Map<string, ContenedorMateriales>();
 
-    const asegurarContenedor = (categoria: string) => {
-        const idContStr = `cat-${categoria.toLowerCase().replace(/\s+/g, '-')}`;
-
-        if (!porContenedor.has(idContStr)) {
-            porContenedor.set(idContStr, {
-                id: idContStr,
-                nombre: categoria,
-                descripcion: 'Almacén Virtual',
-                ubicacion: 'General',
+    const asegurarContenedor = (idCont: string, nombreCont: string, ubicacionCont: string) => {
+        if (!porContenedor.has(idCont)) {
+            porContenedor.set(idCont, {
+                id: idCont,
+                nombre: nombreCont,
+                descripcion: ubicacionCont,
+                ubicacion: ubicacionCont,
                 materiales: [],
             });
         }
-
-        return idContStr;
+        return idCont;
     };
 
     const asegurarMaterialEnContenedor = (idContStr: string, mat: any): MaterialFungible => {
@@ -357,6 +361,13 @@ export const cargarMaterialesDesdeBackend = async (): Promise<{ contenedores: Co
             tipoIdentificacion: (mat.tipoIdentificacion ?? 'lote') as MaterialFungible['tipoIdentificacion'],
             subinstancias: [],
             idInventario: mat.idInventario,
+            promedioSolicitado: mat.promedioSolicitado ?? 1,
+            contenedor: mat.contenedor ? {
+                id: Number(mat.contenedor.id),
+                nombre: mat.contenedor.nombre,
+                ubicacion: mat.contenedor.ubicacion,
+                tipo: mat.contenedor.tipo,
+            } : null,
         };
         contenedor.materiales.push(nuevo);
         return nuevo;
@@ -364,14 +375,23 @@ export const cargarMaterialesDesdeBackend = async (): Promise<{ contenedores: Co
 
     materiales.forEach((mat) => {
         const lotes = mat.lotes ?? [];
-        const idContStr = asegurarContenedor(mat.categoria || 'General');
 
         if (lotes.length === 0) {
+            const idCont = String(mat.contenedor?.id ?? '0');
+            const nombreCont = mat.contenedor?.nombre ?? 'Sin contenedor';
+            const ubicacionCont = mat.contenedor?.ubicacion ?? 'N/D';
+
+            const idContStr = asegurarContenedor(idCont, nombreCont, ubicacionCont);
             asegurarMaterialEnContenedor(idContStr, mat);
             return;
         }
 
         lotes.forEach((inst: any) => {
+            const idCont = String(inst.contenedor?.id ?? mat.contenedor?.id ?? '0');
+            const nombreCont = inst.contenedor?.nombre ?? mat.contenedor?.nombre ?? 'Sin contenedor';
+            const ubicacionCont = inst.contenedor?.ubicacion ?? mat.contenedor?.ubicacion ?? 'N/D';
+
+            const idContStr = asegurarContenedor(idCont, nombreCont, ubicacionCont);
             const materialEnCont = asegurarMaterialEnContenedor(idContStr, mat);
             materialEnCont.subinstancias.push({
                 id: String(inst.id),

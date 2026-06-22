@@ -203,7 +203,9 @@ export interface PrestamoCanastaRegistro {
         estadoFisicoDevolucion?: string | null;
     }>;
     consumibles?: Array<{
-        idLote: string;
+        idLote: string | null;
+        idActivoFungible?: number | null;
+        idContenedor?: number | null;
         lote: string;
         material: string;
         cantidadSolicitada: number;
@@ -243,6 +245,13 @@ export interface MaterialFungible {
     idInventario?: number | null;
     lote?: string | null;
     serie?: string | null;
+    promedioSolicitado?: number;
+    contenedor?: {
+        id: number;
+        nombre: string;
+        ubicacion: string;
+        tipo: string;
+    } | null;
 }
 
 export interface ContenedorMateriales {
@@ -263,7 +272,9 @@ export interface EntregaMaterial {
 }
 
 export interface ItemCanastaConsumible {
-    idLote: string;
+    idLote: string | null;
+    idActivoFungible?: number | null;
+    idContenedor?: number | null;
     cantidad: number;
     motivo: string;
 }

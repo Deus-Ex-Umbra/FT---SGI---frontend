@@ -79,8 +79,11 @@ export const cargarCanastasPrestamoDesdeBackend = async (): Promise<PrestamoCana
         })),
         consumibles: c.consumibles?.map((con) => ({
             idLote: con.idLote,
+            idActivoFungible: (con as any).idActivoFungible ?? null,
+            idContenedor: (con as any).idContenedor ?? null,
             lote: con.lote,
             material: con.material,
+            highlight: (con as any).highlight,
             cantidadSolicitada: (con as any).cantidadSolicitada ?? con.cantidad,
             cantidadDespachada: (con as any).cantidadDespachada ?? con.cantidad,
             cantidadDevuelta: (con as any).cantidadDevuelta,
@@ -290,7 +293,7 @@ export const crearCanastaPrestamoEnBackend = async (payload: {
     idDocente: number;
     items: Array<{ idItem: string; idHerramienta?: string; registrado?: boolean }>;
     contenedores?: Array<{ idContenedor: number; cantidad: number }>;
-    materiales: Array<{ idLote: string; idMaterial?: string; cantidad: number; motivo: string }>;
+    materiales: Array<{ idLote: string | null; idActivoFungible?: number | null; idContenedor?: number | null; cantidad: number; motivo: string }>;
     fechaPrestamo: string;
     fechaDevolucion: string;
     observaciones?: string;
