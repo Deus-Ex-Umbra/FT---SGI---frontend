@@ -13,6 +13,14 @@ import type { Prestamo, PrestamoCanastaRegistro } from '@/tipos/inventario';
 import { Input } from '@/componentes/ui/input';
 import { Boton } from '@/componentes/ui/button';
 import { toast } from 'sonner';
+import {
+    Combobox,
+    ComboboxContent,
+    ComboboxEmpty,
+    ComboboxInput,
+    ComboboxItem,
+    ComboboxList
+} from '@/componentes/ui/combobox';
 
 interface PrestamoMapeado extends Prestamo {
     estudianteNombre: string;
@@ -463,26 +471,40 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                             </Boton>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                                <Input
-                                    placeholder="Buscar por código, CI, estudiante..."
-                                    value={busqueda}
-                                    onChange={(e) => setBusqueda(e.target.value)}
-                                    className="pl-9 h-9 text-xs"
-                                />
-                            </div>
-                            <div className="flex gap-2">
-                                <select
-                                    value={filtroInventario}
-                                    onChange={(e) => setFiltroInventario(e.target.value)}
-                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 flex-1"
-                                >
-                                    <option value="todos">Todos los Inventarios</option>
-                                    {contenedoresCompartidos.map(inv => (
-                                        <option key={inv.id} value={inv.id}>{inv.nombre}</option>
-                                    ))}
-                                </select>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                    <Input
+                                        placeholder="Buscar por código, CI, estudiante..."
+                                        value={busqueda}
+                                        onChange={(e) => setBusqueda(e.target.value)}
+                                        className="pl-9 h-9 text-xs"
+                                    />
+                                </div>
+                                <div className="w-full sm:w-64 shrink-0 z-10">
+                                    <Combobox<{ value: string; label: string }>
+                                        items={[
+                                            { value: 'todos', label: 'Todos los Inventarios' },
+                                            ...contenedoresCompartidos.map(inv => ({ value: String(inv.id), label: inv.nombre }))
+                                        ]}
+                                        value={filtroInventario}
+                                        onValueChange={setFiltroInventario}
+                                        getItemValue={(item) => item.value}
+                                        getItemLabel={(item) => item.label}
+                                    >
+                                        <ComboboxInput placeholder="Seleccionar inventario..." showClear className="h-9 text-xs" />
+                                        <ComboboxContent>
+                                            <ComboboxEmpty>No se encontraron inventarios.</ComboboxEmpty>
+                                            <ComboboxList<{ value: string; label: string }>>
+                                                {(opcion) => (
+                                                    <ComboboxItem key={opcion.value} value={opcion.value}>
+                                                        {opcion.label}
+                                                    </ComboboxItem>
+                                                )}
+                                            </ComboboxList>
+                                        </ComboboxContent>
+                                    </Combobox>
+                                </div>
                             </div>
                         </div>
                         <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
@@ -600,24 +622,33 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                         Cerrar Vista
                                     </button>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3.5">
-                                    <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-800/80 dark:bg-slate-950 shadow-2xs">
-                                        <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Estudiante</h4>
-                                        <div className="mt-1.5 flex items-center gap-2">
-                                            <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center shrink-0">
-                                                <User className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <div className="text-xs font-semibold text-slate-850 dark:text-slate-350 truncate">
-                                                    {prestamoSeleccionado.estudianteNombre}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3.5">
+                                    <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-800/80 dark:bg-slate-950 shadow-2xs max-h-[140px] overflow-y-auto scrollbar-thin">
+                                        <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Estudiante{detallesCompletos?.estudiantes && detallesCompletos.estudiantes.length > 1 ? 's' : ''}</h4>
+                                        <div className="space-y-2">
+                                            {(detallesCompletos?.estudiantes || [{
+                                                carnet: prestamoSeleccionado.carnetEstudiante,
+                                                nombre: prestamoSeleccionado.estudianteNombre.split(' ')[0],
+                                                apellido: prestamoSeleccionado.estudianteNombre.split(' ').slice(1).join(' '),
+                                                carrera: prestamoSeleccionado.estudianteCarrera
+                                            }]).map((est, idx) => (
+                                                <div key={idx} className="flex items-center gap-2">
+                                                    <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center shrink-0">
+                                                        <User className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="text-xs font-semibold text-slate-850 dark:text-slate-350 truncate">
+                                                            {est.nombre} {est.apellido}
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                                                            CI: {est.carnet} • {est.carrera || est.cu || 'S/C'}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                                                    CI: {prestamoSeleccionado.carnetEstudiante} • {prestamoSeleccionado.estudianteCarrera}
-                                                </div>
-                                            </div>
+                                            ))}
                                         </div>
                                     </div>
-                                    <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-800/80 dark:bg-slate-950 shadow-2xs max-h-[120px] overflow-y-auto scrollbar-thin">
+                                    <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-800/80 dark:bg-slate-950 shadow-2xs max-h-[140px] overflow-y-auto scrollbar-thin">
                                         <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                                             {prestamoSeleccionado.esGrupal ? 'Activos Fijos (Canasta)' : 'Activo Fijo'}
                                         </h4>
@@ -640,15 +671,15 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                         </div>
                                     </div>
                                     
-                                    {detallesCompletos && detallesCompletos.consumibles && detallesCompletos.consumibles.length > 0 && (
-                                        <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-800/80 dark:bg-slate-950 shadow-2xs max-h-[120px] overflow-y-auto scrollbar-thin mt-3 md:col-span-2">
-                                            <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                                                Materiales Fungibles
-                                            </h4>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-800/80 dark:bg-slate-950 shadow-2xs max-h-[140px] overflow-y-auto scrollbar-thin">
+                                        <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                                            Materiales Fungibles
+                                        </h4>
+                                        {detallesCompletos && detallesCompletos.consumibles && detallesCompletos.consumibles.length > 0 ? (
+                                            <div className="grid grid-cols-1 gap-2">
                                                 {detallesCompletos.consumibles.map((cons) => (
-                                                    <div key={cons.idLote} className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-2 rounded border border-slate-100/50 dark:border-slate-800/40">
-                                                        <div className="min-w-0 pr-2">
+                                                    <div key={cons.idLote} className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-2 rounded border border-slate-100/50 dark:border-slate-800/40 gap-2">
+                                                        <div className="min-w-0 w-full sm:w-auto">
                                                             <div className="text-xs font-semibold text-slate-850 dark:text-slate-350 truncate" title={cons.material}>
                                                                 {cons.material}
                                                             </div>
@@ -656,7 +687,7 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                                 Lote/Identificador: {cons.lote || 'N/A'}
                                                             </div>
                                                         </div>
-                                                        <div className="text-right shrink-0 flex flex-col gap-0.5">
+                                                        <div className="flex sm:flex-col gap-2 sm:gap-0.5 shrink-0 ml-auto w-full sm:w-auto text-right justify-between sm:justify-start border-t border-slate-200/50 dark:border-slate-800/50 sm:border-t-0 pt-1.5 sm:pt-0">
                                                             <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400">
                                                                 Req: <b>{cons.cantidadSolicitada ?? cons.cantidadDespachada ?? 0}</b>
                                                             </span>
@@ -670,8 +701,10 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                     </div>
                                                 ))}
                                             </div>
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <div className="text-xs text-slate-400 italic text-center py-4">No hay fungibles en esta canasta</div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex-1 overflow-y-auto p-4 bg-slate-50/20 dark:bg-slate-950/10">
@@ -741,21 +774,29 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                                         Activos en esta etapa
                                                                     </div>
                                                                     <div className="divide-y divide-slate-200/40 dark:divide-slate-800/50">
-                                                                        {log.estadoActivosCanasta.map((activo, idx) => (
-                                                                            <div key={activo.idHerramienta || `idx-${idx}`} className="flex items-center justify-between py-1.5 first:pt-0 last:pb-0 gap-3">
-                                                                                <div className="min-w-0">
-                                                                                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                                                                                        {activo.nombre || 'Contenedor Solicitado'}
+                                                                        {log.estadoActivosCanasta.map((activo, idx) => {
+                                                                            let nombreMostrar = activo.nombre;
+                                                                            if (nombreMostrar === 'Activo' && (!activo.codigo || activo.codigo === 'Sin código')) {
+                                                                                // Try to find the original requested container name
+                                                                                const herrRelacionada = prestamoSeleccionado.itemsGrupo.find(h => h.idHerramienta === activo.idHerramienta);
+                                                                                nombreMostrar = herrRelacionada ? herrRelacionada.herramientaNombre : 'Contenedor Solicitado';
+                                                                            }
+                                                                            return (
+                                                                                <div key={activo.idHerramienta || `idx-${idx}`} className="flex items-center justify-between py-1.5 first:pt-0 last:pb-0 gap-3">
+                                                                                    <div className="min-w-0">
+                                                                                        <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate" title={nombreMostrar}>
+                                                                                            {nombreMostrar}
+                                                                                        </div>
+                                                                                        <div className="text-[10px] text-slate-400 dark:text-slate-500">
+                                                                                            Cód: {activo.codigo === 'Sin código' ? 'Por asignar' : activo.codigo}
+                                                                                        </div>
                                                                                     </div>
-                                                                                    <div className="text-[10px] text-slate-400 dark:text-slate-500">
-                                                                                        Cód: {activo.codigo || 'Por asignar'}
+                                                                                    <div className="shrink-0">
+                                                                                        {renderBadgeEstado(activo.estado)}
                                                                                     </div>
                                                                                 </div>
-                                                                                <div className="shrink-0">
-                                                                                    {renderBadgeEstado(activo.estado)}
-                                                                                </div>
-                                                                            </div>
-                                                                        ))}
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 </div>
                                                             )}
