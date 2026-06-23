@@ -170,6 +170,7 @@ export interface PrestamoCanastaRegistro {
     id: string;
     grupoCanasta?: string | null;
     codigo?: string | null;
+    idInventario?: number | null;
     idsPrestamo: Array<string | number>;
     carnetEstudiante: string;
     carnetsEstudiantes?: string[];

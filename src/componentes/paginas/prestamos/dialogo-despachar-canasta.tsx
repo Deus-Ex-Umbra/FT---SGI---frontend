@@ -16,8 +16,8 @@ interface Props {
     estudiantes?: Estudiante[];
     onCerrar: () => void;
     onConfirmar: (payload: {
-        equipos: Array<{ idPrestamo?: string | number | null; idHerramienta: string | null; registrado: boolean; estadoFisicoEntrega?: string }>;
-        consumibles: Array<{ idLote: string; cantidad: number }>;
+        equipos?: Array<{ idPrestamo?: string | number | null; idHerramienta: string | null; registrado: boolean; estadoFisicoEntrega?: string }>;
+        consumibles?: Array<{ idLote: string; cantidad: number }>;
         carnetsRetenidos: string[];
     }) => Promise<void>;
 }
@@ -68,8 +68,8 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     }, []);
 
     const tienePermisoFungibles = useMemo(() => {
-        let idInv: number | null = null;
-        if (canasta.cosas && canasta.cosas.length > 0) {
+        let idInv: number | null = canasta.idInventario ? Number(canasta.idInventario) : null;
+        if (!idInv && canasta.cosas && canasta.cosas.length > 0) {
             for (const cosa of canasta.cosas) {
                 if (cosa.idHerramienta) {
                     const h = herramientas.find(it => String(it.id) === String(cosa.idHerramienta));
@@ -78,8 +78,16 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                         break;
                     }
                 }
+                if (cosa.idContenedor) {
+                    const h = herramientas.find(it => String(it.contenedorId) === String(cosa.idContenedor));
+                    if (h?.idInventario) {
+                        idInv = Number(h.idInventario);
+                        break;
+                    }
+                }
             }
         }
+
         if (!idInv && canasta.consumibles && canasta.consumibles.length > 0) {
             for (const cons of canasta.consumibles) {
                 if (cons.idActivoFungible) {
@@ -105,11 +113,18 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     }, [canasta, herramientas, materiales, misInventarios]);
 
     const tienePermisoFijos = useMemo(() => {
-        let idInv: number | null = null;
-        if (canasta.cosas && canasta.cosas.length > 0) {
+        let idInv: number | null = canasta.idInventario ? Number(canasta.idInventario) : null;
+        if (!idInv && canasta.cosas && canasta.cosas.length > 0) {
             for (const cosa of canasta.cosas) {
                 if (cosa.idHerramienta) {
                     const h = herramientas.find(it => String(it.id) === String(cosa.idHerramienta));
+                    if (h?.idInventario) {
+                        idInv = Number(h.idInventario);
+                        break;
+                    }
+                }
+                if (cosa.idContenedor) {
+                    const h = herramientas.find(it => String(it.contenedorId) === String(cosa.idContenedor));
                     if (h?.idInventario) {
                         idInv = Number(h.idInventario);
                         break;
@@ -479,22 +494,40 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
         e.preventDefault();
         setError('');
 
-        const fijosRegistrados = filasFijos.filter(f => f.registrado);
-        if (fijosRegistrados.length === 0 && filasFungibles.length === 0) {
-            setError('Debes despachar al menos un activo fijo o material fungible.');
-            return;
+        const fijosRegistrados = tienePermisoFijos ? filasFijos.filter(f => f.registrado) : [];
+        const fungiblesAVales = tienePermisoFungibles ? filasFungibles : [];
+
+        if (tienePermisoFijos && tienePermisoFungibles) {
+            if (fijosRegistrados.length === 0 && fungiblesAVales.length === 0) {
+                setError('Debes despachar al menos un activo fijo o material fungible.');
+                return;
+            }
+        } else if (tienePermisoFijos) {
+            if (fijosRegistrados.length === 0) {
+                setError('Debes despachar al menos un activo fijo.');
+                return;
+            }
+        } else if (tienePermisoFungibles) {
+            if (fungiblesAVales.length === 0) {
+                setError('Debes despachar al menos un material fungible.');
+                return;
+            }
         }
 
-        const itemsSinFisico = filasFijos.filter(f => f.registrado && f.idHerramienta === null);
-        if (itemsSinFisico.length > 0) {
-            setError('Debes asignar un activo físico a todos los equipos solicitados antes de despachar.');
-            return;
+        if (tienePermisoFijos) {
+            const itemsSinFisico = filasFijos.filter(f => f.registrado && f.idHerramienta === null);
+            if (itemsSinFisico.length > 0) {
+                setError('Debes asignar un activo físico a todos los equipos solicitados antes de despachar.');
+                return;
+            }
         }
 
-        const fungiblesSinLote = filasFungibles.filter(f => f.idLote === null);
-        if (fungiblesSinLote.length > 0) {
-            setError('Debes asignar un lote físico a todos los materiales fungibles solicitados antes de despachar.');
-            return;
+        if (tienePermisoFungibles) {
+            const fungiblesSinLote = filasFungibles.filter(f => f.idLote === null);
+            if (fungiblesSinLote.length > 0) {
+                setError('Debes asignar un lote físico a todos los materiales fungibles solicitados antes de despachar.');
+                return;
+            }
         }
 
         if (carnetsRetenidos.length === 0) {
@@ -505,16 +538,16 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
         try {
             setGuardando(true);
             await onConfirmar({
-                equipos: filasFijos.map((f) => ({
+                equipos: tienePermisoFijos ? filasFijos.map((f) => ({
                     idPrestamo: f.idPrestamo,
                     idHerramienta: f.idHerramienta,
                     registrado: f.registrado,
                     estadoFisicoEntrega: f.estadoFisicoEntrega,
-                })),
-                consumibles: filasFungibles.map((f) => ({
+                })) : undefined,
+                consumibles: tienePermisoFungibles ? filasFungibles.map((f) => ({
                     idLote: f.idLote!,
                     cantidad: f.cantidadDespachada,
-                })),
+                })) : undefined,
                 carnetsRetenidos,
             });
             onCerrar();
