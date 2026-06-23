@@ -5,6 +5,7 @@ import { LayoutPagina } from '@/componentes/layout/layout-pagina';
 import { BarraFiltros } from '@/componentes/layout/barra-filtros';
 import { FormularioCanastaPrestamo } from '@/componentes/paginas/prestamos/dialogo-canasta-prestamo';
 import { DialogoDetallesPrestamo } from '@/componentes/paginas/prestamos/dialogo-detalles-prestamo';
+import { DialogoAceptarCanasta } from '@/componentes/paginas/prestamos/dialogo-aceptar-canasta';
 import { useInventario } from '@/contextos/ContextoInventario';
 import type { EstadoPrestamo, PrestamoCanastaRegistro } from '@/tipos/inventario';
 import { Clock, Check, Play, AlertTriangle, CheckCircle2, CalendarClock, X } from 'lucide-react';
@@ -52,6 +53,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
     const [modalEditarCanasta, setModalEditarCanasta] = useState<PrestamoCanastaRegistro | null>(null);
     const [mostrarCanasta, setMostrarCanasta] = useState(false);
     const [prestamoParaVer, setPrestamoParaVer] = useState<PrestamoCanastaRegistro | null>(null);
+    const [canastaParaAceptar, setCanastaParaAceptar] = useState<PrestamoCanastaRegistro | null>(null);
 
     const canastasDelDocente = useMemo(() => {
         if (!usuarioActual?.id) return [];
@@ -283,7 +285,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                                 variant="default" 
                                                                 size="sm" 
                                                                 className="h-7 text-[10px] gap-1 px-2 bg-green-600 hover:bg-green-700"
-                                                                onClick={() => handleAprobarDocente(c.id)}
+                                                                onClick={() => setCanastaParaAceptar(c)}
                                                             >
                                                                 Aprobar
                                                             </Boton>
@@ -449,6 +451,16 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                 <DialogoDetallesPrestamo
                     prestamoId={prestamoParaVer.id}
                     onCerrar={() => setPrestamoParaVer(null)}
+                />
+            )}
+
+            {canastaParaAceptar && (
+                <DialogoAceptarCanasta
+                    canasta={canastaParaAceptar}
+                    onCerrar={() => setCanastaParaAceptar(null)}
+                    onConfirmar={async () => {
+                        await handleAprobarDocente(canastaParaAceptar.id);
+                    }}
                 />
             )}
 

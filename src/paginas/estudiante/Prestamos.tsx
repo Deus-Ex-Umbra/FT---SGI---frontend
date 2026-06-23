@@ -3,8 +3,7 @@ import { Boton } from '@/componentes/ui/button';
 import type { PropsPaginaBase } from '@/tipos/paginas';
 import type { EstadoPrestamo } from '@/tipos/inventario';
 import type { DashboardEstudiante } from '@/tipos/api';
-import { descargarPdfCanastaEstudiante } from '@/lib/servicio-prestamos';
-import { Clock, Check, Play, AlertTriangle, CheckCircle2, CalendarClock, X, Download, Package2, Users, UserRound, Eye } from 'lucide-react';
+import { Clock, Check, Play, AlertTriangle, CheckCircle2, CalendarClock, X, Package2, Users, UserRound, Eye } from 'lucide-react';
 import { formatearFechaHora } from '@/utilidades/fechas';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useDashboardEstudiante } from './use-dashboard-estudiante';
@@ -27,8 +26,6 @@ const colorEstadoCanasta = (estado: EstadoPrestamo) => {
 
 export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
     const { cargando, error, datos, recargar } = useDashboardEstudiante(onCerrarSesion);
-    const [descargandoId, setDescargandoId] = useState<string | null>(null);
-    const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
     const [prestamoParaVer, setPrestamoParaVer] = useState<typeof prestamos[number] | null>(null);
 
     const [busqueda, setBusqueda] = useState('');
@@ -71,31 +68,6 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
         if ((prestamo.cosas?.length ?? 0) > 1) return `${prestamo.cosas?.length} activos en préstamo`;
         if ((prestamo.consumibles?.length ?? 0) > 0) return `${prestamo.consumibles?.length} consumible(s) en préstamo`;
         return 'Préstamo';
-    };
-
-    const descargarBlob = (blob: Blob, filename: string) => {
-        const url = URL.createObjectURL(blob);
-        const enlace = document.createElement('a');
-        enlace.href = url;
-        enlace.download = filename;
-        document.body.appendChild(enlace);
-        enlace.click();
-        enlace.remove();
-        URL.revokeObjectURL(url);
-    };
-
-    const manejarDescargaPdf = async (prestamo: DashboardEstudiante['prestamosResumen'][number]) => {
-        try {
-            setDescargandoId(prestamo.id);
-            setErrorDescarga(null);
-            const blob = await descargarPdfCanastaEstudiante(prestamo.id);
-            const nombre = `${prestamo.grupoPrestamoCodigo || prestamo.materiaCodigo || 'prestamo'}-${prestamo.id}.pdf`;
-            descargarBlob(blob, nombre);
-        } catch (errorActual) {
-            setErrorDescarga(errorActual instanceof Error ? errorActual.message : 'No se pudo descargar el comprobante.');
-        } finally {
-            setDescargandoId(null);
-        }
     };
 
     const aFecha = (valor: string, finDia = false) => {
@@ -226,19 +198,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                             >
                                                 <Eye className="h-3 w-3" /> Ver
                                             </Boton>
-                                            {p.esPrestamoGrupal && p.puedeDescargarPdf && (
-                                                <Boton 
-                                                    type="button" 
-                                                    variant="outline" 
-                                                    size="sm" 
-                                                    className="h-7 text-[10px] gap-1 px-2 border-slate-200 hover:bg-slate-50 dark:border-slate-800"
-                                                    onClick={() => void manejarDescargaPdf(p)} 
-                                                    disabled={descargandoId === p.id}
-                                                >
-                                                    <Download className="h-3 w-3" />
-                                                    {descargandoId === p.id ? 'Descargando...' : 'PDF'}
-                                                </Boton>
-                                            )}
+
                                         </div>
                                     </td>
                                 </tr>
@@ -281,11 +241,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
     return (
         <LayoutPagina paginaActiva="prestamos" titulo="Mis préstamos" subtitulo="Revisa tus préstamos actuales y tu historial reciente" onNavegar={onNavegar} onCerrarSesion={onCerrarSesion} onRecargar={recargar} recargando={cargando}>
             <div className="space-y-6">
-                {errorDescarga && (
-                    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300">
-                        {errorDescarga}
-                    </div>
-                )}
+
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 rounded-xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
                     <div className="flex items-center gap-4">
                         <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 shrink-0">
