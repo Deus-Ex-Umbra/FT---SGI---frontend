@@ -4,7 +4,7 @@ import { Boton } from '@/componentes/ui/button';
 import { Label } from '@/componentes/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/componentes/ui/tabs';
 import { Combobox, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from '@/componentes/ui/combobox';
-import { listarMisInventarios } from '@/lib/servicio-autenticacion';
+import { listarMisInventarios, obtenerUsuarioActual } from '@/lib/servicio-autenticacion';
 import { useInventario } from '@/contextos/ContextoInventario';
 import type { EstadoFisicoItemActivo, ItemActivoResumen, PrestamoCanastaRegistro, Estudiante } from '@/tipos/inventario';
 import { ESTADOS_FISICOS_ITEM, etiquetaEstadoFisicoItem, normalizarEstadoFisicoItem } from '@/utilidades/estados-fisico-activo';
@@ -111,13 +111,21 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     }, [canasta, herramientas, materiales]);
 
     const tienePermisoFungibles = useMemo(() => {
+        const usuario = obtenerUsuarioActual();
+        if (usuario?.rol === 'administrador') return true;
         if (!idInventarioCalculado) return false;
+        if (usuario?.id_inventario === Number(idInventarioCalculado)) return usuario?.puedeEditarFungibles === true;
+        
         const inv = misInventarios.find(i => Number(i.id) === Number(idInventarioCalculado));
         return inv ? inv.puedeEditarFungibles === true : false;
     }, [idInventarioCalculado, misInventarios]);
 
     const tienePermisoFijos = useMemo(() => {
+        const usuario = obtenerUsuarioActual();
+        if (usuario?.rol === 'administrador') return true;
         if (!idInventarioCalculado) return false;
+        if (usuario?.id_inventario === Number(idInventarioCalculado)) return usuario?.puedeEditarFijos === true;
+        
         const inv = misInventarios.find(i => Number(i.id) === Number(idInventarioCalculado));
         return inv ? inv.puedeEditarFijos === true : false;
     }, [idInventarioCalculado, misInventarios]);
@@ -125,7 +133,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     const tieneFijosSolicitados = canasta.cosas && canasta.cosas.length > 0;
     const tieneFungiblesSolicitados = canasta.consumibles && canasta.consumibles.length > 0;
 
-    const mostrarTabs = tienePermisoFungibles && tienePermisoFijos;
+    const mostrarTabs = tienePermisoFungibles || tienePermisoFijos;
 
     const estudiantesCanasta = useMemo(() => {
         const CIs = canasta.estudiantes?.length

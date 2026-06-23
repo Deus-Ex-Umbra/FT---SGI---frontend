@@ -4,7 +4,7 @@ import { Boton } from '@/componentes/ui/button';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/componentes/ui/tabs';
-import { listarMisInventarios } from '@/lib/servicio-autenticacion';
+import { listarMisInventarios, obtenerUsuarioActual } from '@/lib/servicio-autenticacion';
 import { useInventario } from '@/contextos/ContextoInventario';
 import type { EstadoFisicoItemActivo, ItemActivoResumen, PrestamoCanastaRegistro, Estudiante } from '@/tipos/inventario';
 import { ESTADOS_FISICOS_ITEM, etiquetaEstadoFisicoItem, normalizarEstadoFisicoItem } from '@/utilidades/estados-fisico-activo';
@@ -111,6 +111,9 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
         }
         
         if (!idInv) return false;
+        const usuario = obtenerUsuarioActual();
+        if (usuario?.rol === 'administrador') return true;
+        if (usuario?.id_inventario === idInv) return usuario?.puedeEditarFungibles === true;
         const inv = misInventarios.find(i => Number(i.id) === Number(idInv));
         return inv ? inv.puedeEditarFungibles === true : false;
     }, [canasta, herramientas, materiales, misInventarios]);
@@ -148,6 +151,9 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
         }
         
         if (!idInv) return false;
+        const usuario = obtenerUsuarioActual();
+        if (usuario?.rol === 'administrador') return true;
+        if (usuario?.id_inventario === idInv) return usuario?.puedeEditarFijos === true;
         const inv = misInventarios.find(i => Number(i.id) === Number(idInv));
         return inv ? inv.puedeEditarFijos === true : false;
     }, [canasta, herramientas, materiales, misInventarios]);
@@ -155,7 +161,7 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
     const tieneFijosSolicitados = canasta.cosas && canasta.cosas.length > 0;
     const tieneFungiblesSolicitados = canasta.consumibles && canasta.consumibles.length > 0;
 
-    const mostrarTabs = tienePermisoFungibles && tienePermisoFijos;
+    const mostrarTabs = tienePermisoFungibles || tienePermisoFijos;
     const estudiantesConCarnetRetenido = useMemo(() => {
         const CIs = canasta.carnetsEstudiantes?.length 
             ? canasta.carnetsEstudiantes 
