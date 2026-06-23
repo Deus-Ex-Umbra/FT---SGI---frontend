@@ -261,6 +261,7 @@ export interface ContenedorMateriales {
     nombre: string;
     descripcion: string;
     ubicacion?: string;
+    idInventario?: number;
     materiales: MaterialFungible[];
 }
 

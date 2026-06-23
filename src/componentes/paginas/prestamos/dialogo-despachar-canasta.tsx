@@ -296,20 +296,61 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     const [filasFungibles, setFilasFungibles] = useState<FilaDespachoFungible[]>(filasInicialesFungibles);
 
     const opcionesLotesFungiblesExtra = useMemo(() => {
-        if (!idInventarioCalculado) return [];
-        return materiales
-            .filter(m => Number(m.idInventario) === Number(idInventarioCalculado))
-            .flatMap(m => m.subinstancias.map(sub => ({
-                value: String(sub.id),
-                label: `[${sub.lote || sub.serie || 'Lote'}] ${m.nombre} - Stock: ${sub.cantidadDisponible}`,
-                idActivoFungible: Number(m.id),
-                material: m.nombre,
-                idContenedor: m.contenedor?.id ?? null,
-                unidad: m.unidad,
-                tipoCantidad: m.tipoCantidad
-            })))
-            .filter(op => !filasFungibles.some(f => String(f.idLote) === op.value));
-    }, [materiales, idInventarioCalculado, filasFungibles]);
+        const usuario = obtenerUsuarioActual();
+        let idAUsar = idInventarioCalculado;
+        if (!idAUsar && misInventarios.length === 1) {
+            idAUsar = misInventarios[0].id;
+        }
+        if (!idAUsar && usuario?.id_inventario) {
+            idAUsar = usuario.id_inventario;
+        }
+
+        if (!idAUsar) return [];
+
+        const opciones: Array<{
+            value: string;
+            label: string;
+            idActivoFungible: number;
+            material: string;
+            idContenedor: number | null;
+            unidad: string;
+            tipoCantidad?: string;
+        }> = [];
+
+        const matsSueltos = materiales.filter(m => Number(m.idInventario) === Number(idAUsar));
+        for (const m of matsSueltos) {
+            for (const sub of m.subinstancias) {
+                opciones.push({
+                    value: String(sub.id),
+                    label: `[${sub.lote || sub.serie || 'Lote'}] ${m.nombre} - Stock: ${sub.cantidadDisponible}`,
+                    idActivoFungible: Number(m.id),
+                    material: m.nombre,
+                    idContenedor: m.contenedor?.id ?? null,
+                    unidad: m.unidad,
+                    tipoCantidad: m.tipoCantidad
+                });
+            }
+        }
+
+        const contsMats = contenedoresMateriales?.filter(c => Number(c.idInventario) === Number(idAUsar)) || [];
+        for (const c of contsMats) {
+            for (const m of c.materiales) {
+                for (const sub of m.subinstancias) {
+                    opciones.push({
+                        value: String(sub.id),
+                        label: `[Contenedor: ${c.nombre}] [${sub.lote || sub.serie || 'Lote'}] ${m.nombre} - Stock: ${sub.cantidadDisponible}`,
+                        idActivoFungible: Number(m.id),
+                        material: m.nombre,
+                        idContenedor: Number(c.id),
+                        unidad: m.unidad,
+                        tipoCantidad: m.tipoCantidad
+                    });
+                }
+            }
+        }
+
+        return opciones.filter(op => !filasFungibles.some(f => String(f.idLote) === op.value));
+    }, [materiales, contenedoresMateriales, idInventarioCalculado, misInventarios, filasFungibles]);
 
     const handleAgregarFungibleExtra = () => {
         if (!fungibleSeleccionadoId) return;
@@ -329,7 +370,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                 cantidadSolicitada: 0,
                 cantidadDespachada: 1,
                 unidad: opcion.unidad,
-                tipoCantidad: opcion.tipoCantidad,
+                tipoCantidad: opcion.tipoCantidad as 'entero' | 'decimal' | undefined,
             }
         ]);
         setFungibleSeleccionadoId('');
@@ -820,6 +861,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                 <th className="px-3 py-2 text-left">Material / Lote</th>
                                 <th className="px-3 py-2 text-center w-32">Solicitado</th>
                                 <th className="px-3 py-2 text-center w-40">A Despachar (editar)</th>
+                                <th className="px-3 py-2 text-center w-16">Acción</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -903,7 +945,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                          {fila.cantidadSolicitada} {fila.unidad || 'uds'}
                                     </td>
                                     <td className="px-3 py-2">
-                                        <div className="flex items-center gap-1.5">
+                                        <div className="flex items-center justify-center gap-1.5">
                                             <input
                                                 type="number"
                                                 title="Cantidad a entregar"
@@ -915,6 +957,20 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                             />
                                             <span className="text-xs text-slate-500 font-medium dark:text-slate-400">{fila.unidad || 'uds'}</span>
                                         </div>
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                        <Boton
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => {
+                                                setFilasFungibles(prev => prev.filter(f => f.idFila !== fila.idFila));
+                                            }}
+                                            className="h-7 w-7 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded shrink-0"
+                                            title="No despachar este material"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Boton>
                                     </td>
                                 </tr>
                             ))}
