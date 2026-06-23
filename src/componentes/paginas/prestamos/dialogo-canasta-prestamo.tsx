@@ -564,10 +564,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     ), [campos.idDocente, docentePredeterminado?.id, docentes, esDocente]);
 
     const opcionesEstudiantesCombobox = useMemo<OpcionSelector[]>(() => (
-        [
-            ...opcionesEstudiantes,
-            { value: OPCION_REGISTRAR_ESTUDIANTE, label: 'Registrar nuevo estudiante...' },
-        ]
+        opcionesEstudiantes
     ), [opcionesEstudiantes]);
 
     const opcionesDocentesCombobox = useMemo<OpcionSelector[]>(() => (
@@ -1241,40 +1238,42 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                         <div className="flex flex-col gap-3 rounded-md border border-slate-200 p-3 dark:border-slate-700 bg-slate-50/20">
                             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Asignar Estudiantes *</label>
                             
-                            <div className="flex flex-wrap items-center gap-4 text-xs">
-                                <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 dark:text-slate-300">
-                                    <input
-                                        type="radio"
-                                        name="tipoSeleccionEstudiante"
-                                        value="grupo"
-                                        checked={tipoSeleccion === 'grupo'}
-                                        onChange={() => {
-                                            setTipoSeleccion('grupo');
-                                            setMateriaSeleccionadaId('');
-                                            setSubgrupoSeleccionadoId('');
-                                            setCampos(prev => ({ ...prev, carnetsEstudiantes: [], carnetEstudiante: '' }));
-                                        }}
-                                        className="accent-indigo-650"
-                                    />
-                                    Por Grupo de Préstamo
-                                </label>
-                                <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 dark:text-slate-300">
-                                    <input
-                                        type="radio"
-                                        name="tipoSeleccionEstudiante"
-                                        value="materia"
-                                        checked={tipoSeleccion === 'materia'}
-                                        onChange={() => {
-                                            setTipoSeleccion('materia');
-                                            setMateriaSeleccionadaId('');
-                                            setSubgrupoSeleccionadoId('');
-                                            setCampos(prev => ({ ...prev, carnetsEstudiantes: [], carnetEstudiante: '' }));
-                                        }}
-                                        className="accent-indigo-650"
-                                    />
-                                    Por Estudiante de una Materia
-                                </label>
-                            </div>
+                            {!esEstudiante && (
+                                <div className="flex flex-wrap items-center gap-4 text-xs">
+                                    <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 dark:text-slate-300">
+                                        <input
+                                            type="radio"
+                                            name="tipoSeleccionEstudiante"
+                                            value="grupo"
+                                            checked={tipoSeleccion === 'grupo'}
+                                            onChange={() => {
+                                                setTipoSeleccion('grupo');
+                                                setMateriaSeleccionadaId('');
+                                                setSubgrupoSeleccionadoId('');
+                                                setCampos(prev => ({ ...prev, carnetsEstudiantes: [], carnetEstudiante: '' }));
+                                            }}
+                                            className="accent-indigo-650"
+                                        />
+                                        Por Grupo de Préstamo
+                                    </label>
+                                    <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 dark:text-slate-300">
+                                        <input
+                                            type="radio"
+                                            name="tipoSeleccionEstudiante"
+                                            value="materia"
+                                            checked={tipoSeleccion === 'materia'}
+                                            onChange={() => {
+                                                setTipoSeleccion('materia');
+                                                setMateriaSeleccionadaId('');
+                                                setSubgrupoSeleccionadoId('');
+                                                setCampos(prev => ({ ...prev, carnetsEstudiantes: [], carnetEstudiante: '' }));
+                                            }}
+                                            className="accent-indigo-650"
+                                        />
+                                        Por Estudiante de una Materia
+                                    </label>
+                                </div>
+                            )}
 
                             <div className="flex flex-col gap-1">
                                 <label className="text-[11px] font-medium text-slate-650 dark:text-slate-400">Materia *</label>
