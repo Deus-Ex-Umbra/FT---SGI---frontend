@@ -418,8 +418,22 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
 
     const obtenerLotesDisponibles = (idActivoFungible: number | string | null | undefined, idContenedor: number | string | null | undefined) => {
         if (!idActivoFungible) return [];
-        const lotes: Array<{ id: string; lote: string; serie: string; cantidadDisponible: number; nombreContenedor: string; idContenedor: string }> = [];
+        const lotes: Array<{ id: string; lote: string; serie: string; cantidadDisponible: number; nombreContenedor: string; idContenedor: string | null }> = [];
         
+        const matGlobal = materiales?.find(m => String(m.id) === String(idActivoFungible));
+        if (matGlobal) {
+            for (const sub of matGlobal.subinstancias) {
+                lotes.push({
+                    id: sub.id,
+                    lote: sub.lote || 'Sin lote',
+                    serie: sub.serie || 'Sin serie',
+                    cantidadDisponible: sub.cantidadDisponible || 0,
+                    nombreContenedor: 'Inventario General',
+                    idContenedor: null
+                });
+            }
+        }
+
         for (const cont of contenedoresMateriales || []) {
             const mat = cont.materiales.find(m => String(m.id) === String(idActivoFungible));
             if (mat) {
@@ -459,12 +473,19 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
 
     const handleAsignarLoteFungible = (idFila: string, loteId: string) => {
         let loteNombre = 'Lote';
-        for (const cont of contenedoresMateriales || []) {
-            for (const mat of cont.materiales) {
-                const sub = mat.subinstancias.find(s => String(s.id) === String(loteId));
-                if (sub) {
-                    loteNombre = sub.lote || sub.serie || 'Lote';
-                    break;
+        
+        const matGlobal = materiales?.find(m => m.subinstancias.some(s => String(s.id) === String(loteId)));
+        if (matGlobal) {
+            const sub = matGlobal.subinstancias.find(s => String(s.id) === String(loteId));
+            if (sub) loteNombre = sub.lote || sub.serie || 'Lote';
+        } else {
+            for (const cont of contenedoresMateriales || []) {
+                for (const mat of cont.materiales) {
+                    const sub = mat.subinstancias.find(s => String(s.id) === String(loteId));
+                    if (sub) {
+                        loteNombre = sub.lote || sub.serie || 'Lote';
+                        break;
+                    }
                 }
             }
         }
