@@ -7,9 +7,9 @@ import {
 import type { PropsPaginaBase } from '@/tipos/paginas';
 import { LayoutPagina } from '@/componentes/layout/layout-pagina';
 import { useInventario } from '@/contextos/ContextoInventario';
-import { cargarHistorialPrestamoDesdeBackend } from '@/lib/servicio-prestamos';
+import { cargarHistorialPrestamoDesdeBackend, obtenerDetallesPrestamoEnBackend } from '@/lib/servicio-prestamos';
 import type { RegistroHistorialPrestamoApi } from '@/tipos/api';
-import type { Prestamo } from '@/tipos/inventario';
+import type { Prestamo, PrestamoCanastaRegistro } from '@/tipos/inventario';
 import { Input } from '@/componentes/ui/input';
 import { Boton } from '@/componentes/ui/button';
 import { toast } from 'sonner';
@@ -29,7 +29,7 @@ interface PrestamoGrupoMapeado extends PrestamoMapeado {
 }
 
 export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
-    const { prestamos, estudiantes, herramientas, cargando, recargarDatos } = useInventario();
+    const { prestamos, estudiantes, herramientas, contenedoresCompartidos, cargando, recargarDatos } = useInventario();
     
     const [prestamoSeleccionado, setPrestamoSeleccionado] = useState<PrestamoGrupoMapeado | null>(null);
     const [historial, setHistorial] = useState<RegistroHistorialPrestamoApi[]>([]);
@@ -37,7 +37,9 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
     
     const [busqueda, setBusqueda] = useState('');
     const [filtroEstado, setFiltroEstado] = useState<string>('todos');
+    const [filtroInventario, setFiltroInventario] = useState<string>('todos');
     const [activosVisibles, setActivosVisibles] = useState<Record<number, boolean>>({});
+    const [detallesCompletos, setDetallesCompletos] = useState<PrestamoCanastaRegistro | null>(null);
 
     useEffect(() => {
         if (!prestamoSeleccionado) {
@@ -46,22 +48,28 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
             return;
         }
 
-        const fetchHistorial = async () => {
+        const fetchHistorialYDetalles = async () => {
             setCargandoHistorial(true);
             setActivosVisibles({});
             try {
-                const data = await cargarHistorialPrestamoDesdeBackend(String(prestamoSeleccionado.id));
-                setHistorial(data);
+                const idParaBuscar = prestamoSeleccionado.grupoCanasta || String(prestamoSeleccionado.id);
+                const [dataHistorial, dataDetalles] = await Promise.all([
+                    cargarHistorialPrestamoDesdeBackend(String(prestamoSeleccionado.id)),
+                    obtenerDetallesPrestamoEnBackend(idParaBuscar).catch(() => null)
+                ]);
+                setHistorial(dataHistorial);
+                setDetallesCompletos(dataDetalles);
             } catch (err: any) {
                 console.error(err);
-                toast.error(err?.message || 'Error al obtener historial del préstamo');
+                toast.error(err?.message || 'Error al obtener datos del préstamo');
                 setHistorial([]);
+                setDetallesCompletos(null);
             } finally {
                 setCargandoHistorial(false);
             }
         };
 
-        void fetchHistorial();
+        void fetchHistorialYDetalles();
     }, [prestamoSeleccionado]);
 
     // Resumen de préstamos mapeados y agrupados por canasta
@@ -111,8 +119,17 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
         return prestamosMapeados.filter(p => {
             const coincideEstado = filtroEstado === 'todos' || p.estado === filtroEstado;
             
+            let coincideInventario = filtroInventario === 'todos';
+            if (!coincideInventario) {
+                // Buscamos si alguna herramienta del grupo pertenece al inventario seleccionado
+                coincideInventario = p.itemsGrupo.some(item => {
+                    const herrCompleta = herramientas.find(h => h.id === item.idHerramienta);
+                    return herrCompleta && String(herrCompleta.idInventario || herrCompleta.contenedorId) === filtroInventario;
+                });
+            }
+
             const term = busqueda.toLowerCase().trim();
-            if (!term) return coincideEstado;
+            if (!term) return coincideEstado && coincideInventario;
 
             const coincideTerm = 
                 (p.codigo || '').toLowerCase().includes(term) ||
@@ -123,9 +140,9 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                     item.herramientaCodigo.toLowerCase().includes(term)
                 );
 
-            return coincideEstado && coincideTerm;
+            return coincideEstado && coincideInventario && coincideTerm;
         });
-    }, [prestamosMapeados, busqueda, filtroEstado]);
+    }, [prestamosMapeados, busqueda, filtroEstado, filtroInventario, herramientas]);
 
     const normalizarAccion = (accion: string) => {
         switch (accion) {
@@ -259,6 +276,51 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                         const valDespues = despues[key];
 
                         if (!esCreacion && JSON.stringify(valAntes) === JSON.stringify(valDespues)) return null;
+
+                        if (key === 'consumibles' && Array.isArray(valDespues)) {
+                            return (
+                                <div key={key} className="mt-2 pt-2 border-t border-slate-100/50 dark:border-slate-800/20 text-xs">
+                                    <span className="font-medium text-slate-500 dark:text-slate-400 block mb-1">
+                                        Materiales Fungibles:
+                                    </span>
+                                    <div className="space-y-1 pl-2">
+                                        {valDespues.map((cons: any, idx: number) => {
+                                            const prevCons = Array.isArray(valAntes) ? valAntes.find((c: any) => c.idLote === cons.idLote) : null;
+                                            const req = cons.cantidadSolicitada ?? cons.cantidad;
+                                            const des = cons.cantidadDespachada ?? req;
+                                            const dev = cons.cantidadDevuelta ?? 0;
+                                            
+                                            let textChanges = '';
+                                            if (prevCons) {
+                                                const prevDev = prevCons.cantidadDevuelta ?? 0;
+                                                const prevDes = prevCons.cantidadDespachada ?? prevCons.cantidadSolicitada ?? prevCons.cantidad;
+                                                if (des !== prevDes) textChanges += ` Despachado: ${prevDes} ➔ ${des}`;
+                                                if (dev !== prevDev) textChanges += ` Devuelto: ${prevDev} ➔ ${dev}`;
+                                            } else {
+                                                textChanges = `Req: ${req} | Desp: ${des} | Dev: ${dev}`;
+                                            }
+
+                                            return (
+                                                <div key={idx} className="flex justify-between items-center bg-white dark:bg-slate-950 p-1.5 rounded border border-slate-100 dark:border-slate-800">
+                                                    <span className="text-slate-700 dark:text-slate-300 font-medium truncate max-w-[140px]" title={cons.material}>
+                                                        {cons.material}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 ml-2">
+                                                        {textChanges.trim() || `(Sin cambios detectados)`}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        if (key === 'cosas' && Array.isArray(valDespues)) {
+                            // Ignorar 'cosas' si es sólo para mostrar, porque ya hay estadoActivosCanasta,
+                            // o renderizarlo si es necesario. Por ahora no lo renderizamos explícitamente como llave raw.
+                            return null;
+                        }
 
                         return (
                             <div key={key} className="flex flex-col sm:flex-row sm:items-center justify-between py-1 border-b border-slate-100/50 dark:border-slate-800/20 last:border-b-0 text-xs">
@@ -400,14 +462,28 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                 Actualizar
                             </Boton>
                         </div>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                            <Input
-                                placeholder="Buscar por código, CI, estudiante..."
-                                value={busqueda}
-                                onChange={(e) => setBusqueda(e.target.value)}
-                                className="pl-9 h-9 text-xs"
-                            />
+                        <div className="flex flex-col gap-2">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                <Input
+                                    placeholder="Buscar por código, CI, estudiante..."
+                                    value={busqueda}
+                                    onChange={(e) => setBusqueda(e.target.value)}
+                                    className="pl-9 h-9 text-xs"
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <select
+                                    value={filtroInventario}
+                                    onChange={(e) => setFiltroInventario(e.target.value)}
+                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 flex-1"
+                                >
+                                    <option value="todos">Todos los Inventarios</option>
+                                    {contenedoresCompartidos.map(inv => (
+                                        <option key={inv.id} value={inv.id}>{inv.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                         <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
                             {[
@@ -563,6 +639,39 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                             ))}
                                         </div>
                                     </div>
+                                    
+                                    {detallesCompletos && detallesCompletos.consumibles && detallesCompletos.consumibles.length > 0 && (
+                                        <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-800/80 dark:bg-slate-950 shadow-2xs max-h-[120px] overflow-y-auto scrollbar-thin mt-3 md:col-span-2">
+                                            <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                                                Materiales Fungibles
+                                            </h4>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                {detallesCompletos.consumibles.map((cons) => (
+                                                    <div key={cons.idLote} className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-2 rounded border border-slate-100/50 dark:border-slate-800/40">
+                                                        <div className="min-w-0 pr-2">
+                                                            <div className="text-xs font-semibold text-slate-850 dark:text-slate-350 truncate" title={cons.material}>
+                                                                {cons.material}
+                                                            </div>
+                                                            <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                                                                Lote/Identificador: {cons.lote || 'N/A'}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right shrink-0 flex flex-col gap-0.5">
+                                                            <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                                                                Req: <b>{cons.cantidadSolicitada ?? cons.cantidadDespachada ?? 0}</b>
+                                                            </span>
+                                                            <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400">
+                                                                Desp: <b>{cons.cantidadDespachada ?? cons.cantidadSolicitada ?? 0}</b>
+                                                            </span>
+                                                            <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                                                                Dev: <b>{cons.cantidadDevuelta ?? 0}</b>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex-1 overflow-y-auto p-4 bg-slate-50/20 dark:bg-slate-950/10">
@@ -632,14 +741,14 @@ export const Auditoria = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                                         Activos en esta etapa
                                                                     </div>
                                                                     <div className="divide-y divide-slate-200/40 dark:divide-slate-800/50">
-                                                                        {log.estadoActivosCanasta.map((activo) => (
-                                                                            <div key={activo.idHerramienta} className="flex items-center justify-between py-1.5 first:pt-0 last:pb-0 gap-3">
+                                                                        {log.estadoActivosCanasta.map((activo, idx) => (
+                                                                            <div key={activo.idHerramienta || `idx-${idx}`} className="flex items-center justify-between py-1.5 first:pt-0 last:pb-0 gap-3">
                                                                                 <div className="min-w-0">
                                                                                     <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                                                                                        {activo.nombre}
+                                                                                        {activo.nombre || 'Contenedor Solicitado'}
                                                                                     </div>
                                                                                     <div className="text-[10px] text-slate-400 dark:text-slate-500">
-                                                                                        Cód: {activo.codigo}
+                                                                                        Cód: {activo.codigo || 'Por asignar'}
                                                                                     </div>
                                                                                 </div>
                                                                                 <div className="shrink-0">
