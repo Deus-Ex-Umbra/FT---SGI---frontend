@@ -6,13 +6,15 @@ import type { DashboardEstudiante } from '@/tipos/api';
 import { descargarPdfCanastaEstudiante } from '@/lib/servicio-prestamos';
 import { Clock, Check, Play, AlertTriangle, CheckCircle2, CalendarClock, X, Download, Package2, Users, UserRound, Eye } from 'lucide-react';
 import { formatearFechaHora } from '@/utilidades/fechas';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useDashboardEstudiante } from './use-dashboard-estudiante';
 import { useBusquedaPaginacion } from '@/hooks/use-busqueda-paginacion';
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { BarraFiltros } from '@/componentes/layout/barra-filtros';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { DialogoDetallesPrestamo } from '@/componentes/paginas/prestamos/dialogo-detalles-prestamo';
+import { FormularioCanastaPrestamo } from '@/componentes/paginas/prestamos/dialogo-canasta-prestamo';
+import { listarMateriasLideradasDocencia } from '@/lib/servicio-docencia';
 
 const colorEstadoCanasta = (estado: EstadoPrestamo) => {
     if (estado === 'solicitado') return 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950/30 dark:border-amber-850';
@@ -32,7 +34,21 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
     const [busqueda, setBusqueda] = useState('');
     const [fechaDesde, setFechaDesde] = useState('');
     const [fechaHasta, setFechaHasta] = useState('');
-    const [tabEstado, setTabEstado] = useState<EstadoPrestamo>('solicitado');
+    const [tabEstado, setTabEstado] = useState<EstadoPrestamo | 'pendiente_docente'>('solicitado');
+
+    const [mostrarCanasta, setMostrarCanasta] = useState(false);
+    const [esLider, setEsLider] = useState(false);
+
+    useEffect(() => {
+        void (async () => {
+            try {
+                const lideradas = await listarMateriasLideradasDocencia();
+                setEsLider(lideradas.length > 0);
+            } catch (e) {
+                console.error('Error al verificar liderazgo:', e);
+            }
+        })();
+    }, []);
 
     const renderEstadoPrestamo = (estado: EstadoPrestamo) => {
         return (
@@ -119,6 +135,11 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
 
     const canastasSolicitadas = useMemo(
         () => prestamosFiltrados.filter((p) => p.estado === 'solicitado'),
+        [prestamosFiltrados],
+    );
+
+    const canastasPendientesDocente = useMemo(
+        () => prestamosFiltrados.filter((p) => p.estado === 'pendiente_docente'),
         [prestamosFiltrados],
     );
 
@@ -298,8 +319,12 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                     </div>
                 </div>
 
-                <Tabs value={tabEstado} onValueChange={(val) => setTabEstado(val as EstadoPrestamo)}>
+                <Tabs value={tabEstado} onValueChange={(val) => setTabEstado(val as EstadoPrestamo | 'pendiente_docente')}>
                     <TabsList className="flex flex-wrap gap-1 p-1 rounded-lg bg-slate-100/60 dark:bg-slate-800/40 w-full justify-start h-auto">
+                        <TabsTrigger value="pendiente_docente" className="gap-1.5 text-sm font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                            <Clock className="h-3.5 w-3.5 text-orange-500" />
+                            Pendientes Docente ({canastasPendientesDocente.length})
+                        </TabsTrigger>
                         <TabsTrigger value="solicitado" className="gap-1.5 text-sm font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
                             <Clock className="h-3.5 w-3.5 text-amber-500" />
                             Solicitado ({canastasSolicitadas.length})
@@ -356,8 +381,16 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                 />
                             </BarraFiltros>
                         </div>
+                        {esLider && (
+                            <div className="flex h-10 items-center shrink-0 mt-4 md:mt-0">
+                                <Boton onClick={() => setMostrarCanasta(true)} className="inline-flex h-10 items-center rounded-md bg-emerald-600 px-4 text-sm font-bold text-white transition-colors hover:bg-emerald-700 shadow-sm gap-1">
+                                    Solicitar préstamo
+                                </Boton>
+                            </div>
+                        )}
                     </div>
 
+                    <TabsContent value="pendiente_docente" className="mt-4">{renderTablaEstudiante(canastasPendientesDocente)}</TabsContent>
                     <TabsContent value="solicitado" className="mt-4">{renderTablaEstudiante(canastasSolicitadas)}</TabsContent>
                     <TabsContent value="aceptado" className="mt-4">{renderTablaEstudiante(canastasAceptadas)}</TabsContent>
                     <TabsContent value="despachado" className="mt-4">{renderTablaEstudiante(canastasDespachadas)}</TabsContent>
@@ -372,6 +405,18 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                 <DialogoDetallesPrestamo
                     prestamoId={prestamoParaVer.id}
                     onCerrar={() => setPrestamoParaVer(null)}
+                />
+            )}
+
+            {mostrarCanasta && (
+                <FormularioCanastaPrestamo
+                    onCerrar={() => {
+                        setMostrarCanasta(false);
+                        void recargar();
+                    }}
+                    onGuardado={() => {
+                        void recargar();
+                    }}
                 />
             )}
         </LayoutPagina>
