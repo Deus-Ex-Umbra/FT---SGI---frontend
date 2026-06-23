@@ -37,6 +37,7 @@ interface FilaDespachoFijo {
 
 interface FilaDespachoFungible {
     idFila: string;
+    idPrestamo?: string | number | null;
     idLote: string | null;
     idActivoFungible: number | null;
     idContenedor: number | null;
@@ -190,7 +191,13 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
         setCarnetsRetenidos(estudiantesCanasta.map(e => e.carnet));
     }, [estudiantesCanasta]);
     const filasInicialesFijos = useMemo<FilaDespachoFijo[]>(() => {
-        return (canasta.cosas ?? []).map((cosa) => {
+        return (canasta.cosas ?? []).filter((cosa: any) => {
+            if (cosa.idContenedor) {
+                const isFungible = contenedoresMateriales?.some(c => String(c.id) === String(cosa.idContenedor));
+                if (isFungible) return false;
+            }
+            return true;
+        }).map((cosa: any) => {
             const h = cosa.idHerramienta ? herramientas.find((it) => it.id === cosa.idHerramienta) : null;
             const fisico = normalizarEstadoFisicoItem(h?.estadoFisico) ?? 'bueno';
             return {
@@ -205,11 +212,11 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                 estadoFisicoEntrega: fisico,
             };
         });
-    }, [canasta.cosas, herramientas]);
+    }, [canasta.cosas, herramientas, contenedoresMateriales]);
 
     const [filasFijos, setFilasFijos] = useState<FilaDespachoFijo[]>(filasInicialesFijos);
     const filasInicialesFungibles = useMemo<FilaDespachoFungible[]>(() => {
-        return (canasta.consumibles ?? []).map((c) => {
+        const consumiblesRows = (canasta.consumibles ?? []).map((c: any) => {
             const cantidadSol = Number(c.cantidadSolicitada ?? 0);
             let idActivoFungibleNum = c.idActivoFungible ? Number(c.idActivoFungible) : null;
             let unidad = 'uds';
@@ -252,18 +259,42 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
 
             return {
                 idFila: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(7),
+                idPrestamo: null,
                 idLote: c.idLote || null,
                 idActivoFungible: idActivoFungibleNum,
                 idContenedor: c.idContenedor ? Number(c.idContenedor) : null,
                 lote: c.lote || (c.idLote ? 'Lote' : ''),
                 material: c.material || 'Material',
                 cantidadSolicitada: cantidadSol,
-                cantidadDespachada: c.cantidadDespachada ?? cantidadSol,
+                cantidadDespachada: Number(c.cantidadDespachada ?? cantidadSol),
                 unidad,
                 tipoCantidad,
-            };
+            } as FilaDespachoFungible;
         });
-    }, [canasta.consumibles, contenedoresMateriales, materiales]);
+
+        const contenedorRows = (canasta.cosas ?? []).filter((cosa: any) => {
+            if (cosa.idContenedor) {
+                return contenedoresMateriales?.some(c => String(c.id) === String(cosa.idContenedor));
+            }
+            return false;
+        }).map((cosa: any) => {
+            return {
+                idFila: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(7),
+                idPrestamo: cosa.idPrestamo,
+                idLote: null,
+                idActivoFungible: null,
+                idContenedor: cosa.idContenedor,
+                lote: '',
+                material: `Contenedor: ${cosa.nombreContenedor || 'Desconocido'}`,
+                cantidadSolicitada: 1,
+                cantidadDespachada: 0,
+                unidad: 'uds',
+                tipoCantidad: 'entero',
+            } as FilaDespachoFungible;
+        });
+
+        return [...contenedorRows, ...consumiblesRows];
+    }, [canasta.consumibles, canasta.cosas, materiales, contenedoresMateriales]);
 
     const [filasFungibles, setFilasFungibles] = useState<FilaDespachoFungible[]>(filasInicialesFungibles);
 
@@ -758,7 +789,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                             {filasFungibles.map((fila) => (
                                 <tr key={fila.idFila} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                      <td className="px-3 py-2 min-w-0">
-                                         {fila.idLote === null ? (
+                                         {fila.idLote === null && fila.idActivoFungible !== null ? (
                                              <div className="flex flex-col gap-1.5">
                                                  <span className="font-semibold text-slate-500 italic dark:text-slate-400">
                                                      [Solicitado Genérico] {fila.material}
@@ -794,9 +825,11 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                      {fila.material}
                                                  </div>
                                                  <div className="flex items-center gap-2">
-                                                     <span className="text-[10px] text-slate-400">
-                                                         Lote: {fila.lote} | ID: {fila.idLote}
-                                                     </span>
+                                                     {fila.idLote !== null && (
+                                                         <span className="text-[10px] text-slate-400">
+                                                             Lote: {fila.lote} | ID: {fila.idLote}
+                                                         </span>
+                                                     )}
                                                      {fila.idActivoFungible !== null && (
                                                          <Boton
                                                              type="button"
@@ -812,6 +845,20 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                                          </Boton>
                                                      )}
                                                  </div>
+                                                 {fila.idLote === null && fila.idContenedor !== null && (
+                                                     <Boton
+                                                         type="button"
+                                                         variant="ghost"
+                                                         size="icon"
+                                                         onClick={() => {
+                                                             setFilasFungibles(prev => prev.filter(f => f.idFila !== fila.idFila));
+                                                         }}
+                                                         className="mt-2 h-6 px-2 text-[10px] text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded border border-red-200 dark:border-red-900/50 flex items-center justify-center gap-1"
+                                                         title="Quitar contenedor de la lista"
+                                                     >
+                                                         <Trash2 className="h-3 w-3" /> Quitar
+                                                     </Boton>
+                                                 )}
                                              </div>
                                          )}
                                      </td>

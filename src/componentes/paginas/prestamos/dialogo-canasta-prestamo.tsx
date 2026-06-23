@@ -118,7 +118,7 @@ const construirCamposCanasta = (canasta?: PrestamoCanastaRegistro, docentePredet
 };
 
 export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Props) => {
-    const { estudiantes, docentes, herramientas, prestamos, recargarDatos, agregarEstudiante, agregarDocente, materias, materiales, contenedoresMateriales } = useInventario();
+    const { estudiantes, docentes, herramientas, prestamos, recargarDatos, agregarEstudiante, agregarDocente, materias, materiales } = useInventario();
     const usuarioActual = useMemo(() => obtenerUsuarioActual(), []);
     const esAdministrador = usuarioActual?.rol === 'administrador';
     const esDocente = usuarioActual?.rol === 'docente';
@@ -865,7 +865,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     };
 
     const renderSeccionContenedoresDocente = () => {
-        const contenedoresFijos = contenedores.filter(c => c.tipo === 'fijo');
+        const contenedoresFijos = contenedores.filter((c: any) => c.tipo === 'fijo');
         return (
             <div className="rounded-md border border-slate-200 p-4 dark:border-slate-700 bg-slate-50/30 space-y-4">
                 <div>
@@ -880,7 +880,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                     <p className="text-xs text-slate-400 py-4 text-center">No hay tipos de equipos disponibles en este inventario.</p>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {contenedoresFijos.map((cont) => {
+                        {contenedoresFijos.map((cont: any) => {
                             const qty = cantidadesContenedores[cont.id] ?? 0;
                             return (
                                 <div key={cont.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/40 hover:border-slate-300 transition-colors">
@@ -942,12 +942,12 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     };
 
     const renderSeccionMaterialesDocente = () => {
-        const contenedoresFungibles = contenedores.filter(c => c.tipo === 'fungible');
+        const contenedoresFungibles = contenedores.filter((c: any) => c.tipo === 'fungible');
         return (
             <div className="rounded-md border border-slate-200 p-4 dark:border-slate-700 bg-slate-50/30 space-y-4">
                 <div>
-                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Materiales Fungibles Solicitados</h3>
-                    <p className="text-xs text-slate-500">Selecciona los materiales que necesitas y la cantidad solicitada.</p>
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Contenedores de Materiales Solicitados</h3>
+                    <p className="text-xs text-slate-500">Selecciona los contenedores de materiales que necesitas.</p>
                 </div>
                 {cargandoContenedores ? (
                     <div className="flex items-center justify-center py-6 text-xs text-slate-500">
@@ -956,68 +956,30 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                 ) : contenedoresFungibles.length === 0 ? (
                     <p className="text-xs text-slate-400 py-4 text-center">No hay contenedores de materiales disponibles en este inventario.</p>
                 ) : (
-                    <div className="space-y-4">
-                        {contenedoresFungibles.map((cont) => {
-                            const cm = contenedoresMateriales.find(c => String(c.id) === String(cont.id));
-                            const materialesEnCont = cm?.materiales ?? [];
-                            if (materialesEnCont.length === 0) return null;
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {contenedoresFungibles.map((cont: any) => {
+                            const qty = cantidadesContenedores[cont.id] ?? 0;
+                            const seleccionado = qty > 0;
 
                             return (
-                                <div key={cont.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
-                                    <div className="border-b border-slate-100 pb-2 mb-3 dark:border-slate-800">
-                                        <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400">{cont.nombre}</p>
-                                        <p className="text-[10px] text-slate-400 dark:text-slate-500">{cont.ubicacion || 'Ubicación no especificada'}</p>
-                                    </div>
-                                    <div className="space-y-3">
-                                        {materialesEnCont.map((mat) => {
-                                            const itemSel = campos.consumibles.find(
-                                                (c) => c.idActivoFungible === Number(mat.id) && c.idContenedor === Number(cont.id)
-                                            );
-                                            const seleccionado = !!itemSel;
-
-                                            return (
-                                                <div key={mat.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
-                                                    <div className="flex items-center gap-3">
-                                                        <input
-                                                            type="checkbox"
-                                                            id={`chk-${cont.id}-${mat.id}`}
-                                                            checked={seleccionado}
-                                                            onChange={(e) => {
-                                                                if (e.target.checked) {
-                                                                    setCampos((prev) => ({
-                                                                        ...prev,
-                                                                        consumibles: [
-                                                                            ...prev.consumibles,
-                                                                            {
-                                                                                idLote: null as any,
-                                                                                idActivoFungible: Number(mat.id),
-                                                                                idContenedor: Number(cont.id),
-                                                                                cantidad: mat.promedioSolicitado || 1,
-                                                                                motivo: 'Uso en clase',
-                                                                            },
-                                                                        ],
-                                                                    }));
-                                                                } else {
-                                                                    setCampos((prev) => ({
-                                                                        ...prev,
-                                                                        consumibles: prev.consumibles.filter(
-                                                                            (c) => !(c.idActivoFungible === Number(mat.id) && c.idContenedor === Number(cont.id))
-                                                                        ),
-                                                                    }));
-                                                                }
-                                                            }}
-                                                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                                        />
-                                                        <label htmlFor={`chk-${cont.id}-${mat.id}`} className="cursor-pointer select-none">
-                                                            <p className="text-xs font-medium text-slate-800 dark:text-slate-200">{mat.nombre}</p>
-                                                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                                                                Sugerido promedio: {mat.promedioSolicitado || 1} {mat.unidad}
-                                                            </p>
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                <div key={cont.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/40 hover:border-slate-300 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            id={`chk-cont-${cont.id}`}
+                                            checked={seleccionado}
+                                            onChange={(e) => {
+                                                setCantidadesContenedores((prev) => ({
+                                                    ...prev,
+                                                    [cont.id]: e.target.checked ? 1 : 0,
+                                                }));
+                                            }}
+                                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                        />
+                                        <label htmlFor={`chk-cont-${cont.id}`} className="cursor-pointer select-none min-w-0 pr-2">
+                                            <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{cont.nombre}</p>
+                                            <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{cont.ubicacion || 'General'}</p>
+                                        </label>
                                     </div>
                                 </div>
                             );
