@@ -70,12 +70,33 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     const tienePermisoFungibles = useMemo(() => {
         let idInv: number | null = null;
         if (canasta.cosas && canasta.cosas.length > 0) {
-            const h = herramientas.find(it => it.id === canasta.cosas?.[0]?.idHerramienta);
-            if (h?.idInventario) idInv = Number(h.idInventario);
+            for (const cosa of canasta.cosas) {
+                if (cosa.idHerramienta) {
+                    const h = herramientas.find(it => String(it.id) === String(cosa.idHerramienta));
+                    if (h?.idInventario) {
+                        idInv = Number(h.idInventario);
+                        break;
+                    }
+                }
+            }
         }
         if (!idInv && canasta.consumibles && canasta.consumibles.length > 0) {
-            const m = materiales.find(it => it.id === canasta.consumibles?.[0]?.idLote);
-            if (m?.idInventario) idInv = Number(m.idInventario);
+            for (const cons of canasta.consumibles) {
+                if (cons.idActivoFungible) {
+                    const m = materiales.find(it => Number(it.id) === Number(cons.idActivoFungible));
+                    if (m?.idInventario) {
+                        idInv = Number(m.idInventario);
+                        break;
+                    }
+                }
+                if (cons.idLote) {
+                    const m = materiales.find(m => m.subinstancias.some(sub => String(sub.id) === String(cons.idLote)));
+                    if (m?.idInventario) {
+                        idInv = Number(m.idInventario);
+                        break;
+                    }
+                }
+            }
         }
         
         if (!idInv) return false;
@@ -83,9 +104,47 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
         return inv ? inv.puedeEditarFungibles === true : false;
     }, [canasta, herramientas, materiales, misInventarios]);
 
+    const tienePermisoFijos = useMemo(() => {
+        let idInv: number | null = null;
+        if (canasta.cosas && canasta.cosas.length > 0) {
+            for (const cosa of canasta.cosas) {
+                if (cosa.idHerramienta) {
+                    const h = herramientas.find(it => String(it.id) === String(cosa.idHerramienta));
+                    if (h?.idInventario) {
+                        idInv = Number(h.idInventario);
+                        break;
+                    }
+                }
+            }
+        }
+        if (!idInv && canasta.consumibles && canasta.consumibles.length > 0) {
+            for (const cons of canasta.consumibles) {
+                if (cons.idActivoFungible) {
+                    const m = materiales.find(it => Number(it.id) === Number(cons.idActivoFungible));
+                    if (m?.idInventario) {
+                        idInv = Number(m.idInventario);
+                        break;
+                    }
+                }
+                if (cons.idLote) {
+                    const m = materiales.find(m => m.subinstancias.some(sub => String(sub.id) === String(cons.idLote)));
+                    if (m?.idInventario) {
+                        idInv = Number(m.idInventario);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (!idInv) return false;
+        const inv = misInventarios.find(i => Number(i.id) === Number(idInv));
+        return inv ? inv.puedeEditarFijos === true : false;
+    }, [canasta, herramientas, materiales, misInventarios]);
 
+    const tieneFijosSolicitados = canasta.cosas && canasta.cosas.length > 0;
+    const tieneFungiblesSolicitados = canasta.consumibles && canasta.consumibles.length > 0;
 
-    const mostrarTabs = tienePermisoFungibles;
+    const mostrarTabs = tienePermisoFungibles && tienePermisoFijos && tieneFijosSolicitados && tieneFungiblesSolicitados;
 
     const estudiantesCanasta = useMemo(() => {
         const CIs = canasta.estudiantes?.length
@@ -790,7 +849,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                         </div>
                     </div>
                     {mostrarTabs ? (
-                        <Tabs defaultValue="equipos" className="w-full">
+                        <Tabs defaultValue={tieneFijosSolicitados ? "equipos" : "materiales"} className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="equipos" className="text-xs">Activos Fijos (Equipos)</TabsTrigger>
                                 <TabsTrigger value="materiales" className="text-xs">Materiales Fungibles</TabsTrigger>
@@ -802,7 +861,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                                 {renderFungiblesSeccion()}
                             </TabsContent>
                         </Tabs>
-                    ) : tienePermisoFungibles ? (
+                    ) : tienePermisoFungibles && tieneFungiblesSolicitados ? (
                         <div className="space-y-2">
                             <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Materiales Fungibles</h3>
                             {renderFungiblesSeccion()}
