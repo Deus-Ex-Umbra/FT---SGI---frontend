@@ -12,7 +12,7 @@ import { useBusquedaPaginacion } from '@/hooks/use-busqueda-paginacion';
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { BarraFiltros } from '@/componentes/layout/barra-filtros';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { ModalBase } from '@/componentes/paginas/inventario/modal-base';
+import { DialogoDetallesPrestamo } from '@/componentes/paginas/prestamos/dialogo-detalles-prestamo';
 
 const colorEstadoCanasta = (estado: EstadoPrestamo) => {
     if (estado === 'solicitado') return 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950/30 dark:border-amber-850';
@@ -27,7 +27,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
     const { cargando, error, datos, recargar } = useDashboardEstudiante(onCerrarSesion);
     const [descargandoId, setDescargandoId] = useState<string | null>(null);
     const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
-    const [modalVerActivos, setModalVerActivos] = useState<typeof prestamos[number] | null>(null);
+    const [prestamoParaVer, setPrestamoParaVer] = useState<typeof prestamos[number] | null>(null);
 
     const [busqueda, setBusqueda] = useState('');
     const [fechaDesde, setFechaDesde] = useState('');
@@ -201,9 +201,9 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                 variant="outline" 
                                                 size="sm" 
                                                 className="h-7 text-[10px] gap-1 px-2 border-slate-200 hover:bg-slate-50 dark:border-slate-800"
-                                                onClick={() => setModalVerActivos(p)}
+                                                onClick={() => setPrestamoParaVer(p)}
                                             >
-                                                <Eye className="h-3 w-3" /> Ver activos
+                                                <Eye className="h-3 w-3" /> Ver
                                             </Boton>
                                             {p.esPrestamoGrupal && p.puedeDescargarPdf && (
                                                 <Boton 
@@ -368,66 +368,11 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                 </Tabs>
             </div>
 
-            {modalVerActivos && (
-                <ModalBase
-                    titulo={`Detalle de activos - Préstamo ${modalVerActivos.codigo ?? modalVerActivos.id}`}
-                    onCerrar={() => setModalVerActivos(null)}
-                    ancho="max-w-md"
-                >
-                    <div className="space-y-4 p-4 text-xs">
-                        <div>
-                            <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">Activos Fijos:</h4>
-                            {modalVerActivos.cosas && modalVerActivos.cosas.length > 0 ? (
-                                <ul className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-150 dark:border-slate-800 rounded-lg overflow-hidden">
-                                    {modalVerActivos.cosas.map((item, idx) => (
-                                        <li key={idx} className="px-3 py-2 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between">
-                                            <div>
-                                                <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">[{item.codigoInventario || 'Sin asignar'}]</span>{' '}
-                                                <span className="text-slate-705 dark:text-slate-300">{item.nombre}</span>
-                                            </div>
-                                            {item.registrado === false ? (
-                                                <span className="inline-flex items-center rounded-full bg-rose-50 border border-rose-200 px-2 py-0.5 text-[9px] font-bold text-rose-700 dark:bg-rose-950/30 dark:border-rose-900/40 dark:text-rose-300 shrink-0">
-                                                    No despachado
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[9px] font-bold text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:text-emerald-300 shrink-0">
-                                                    Prestado
-                                                </span>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-slate-400 italic">Ningún activo fijo solicitado.</p>
-                            )}
-                        </div>
-
-                        <div>
-                            <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">Activos Fungibles (Consumibles):</h4>
-                            {modalVerActivos.consumibles && modalVerActivos.consumibles.length > 0 ? (
-                                <ul className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-150 dark:border-slate-800 rounded-lg overflow-hidden">
-                                    {modalVerActivos.consumibles.map((item: any, idx: number) => (
-                                        <li key={idx} className="px-3 py-2 bg-slate-50/50 dark:bg-slate-900/30 flex justify-between items-center">
-                                            <div>
-                                                <span className="text-slate-707 dark:text-slate-300 font-medium">{item.material}</span>
-                                                {item.lote && <p className="text-[10px] text-slate-500">Lote/Serie: {item.lote}</p>}
-                                            </div>
-                                            <span className="font-mono bg-blue-50 text-blue-705 px-2 py-0.5 rounded text-[10px] font-bold dark:bg-blue-950/40 dark:text-blue-300">
-                                                Cant: {['solicitado', 'aceptado'].includes(modalVerActivos.estado) ? item.cantidadSolicitada : (item.cantidadDespachada ?? item.cantidadSolicitada ?? item.cantidad ?? 0)}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-slate-400 italic">Ningún material fungible solicitado.</p>
-                            )}
-                        </div>
-
-                        <div className="flex justify-end pt-2">
-                            <Boton type="button" onClick={() => setModalVerActivos(null)}>Cerrar</Boton>
-                        </div>
-                    </div>
-                </ModalBase>
+            {prestamoParaVer && (
+                <DialogoDetallesPrestamo
+                    prestamoId={prestamoParaVer.id}
+                    onCerrar={() => setPrestamoParaVer(null)}
+                />
             )}
         </LayoutPagina>
     );

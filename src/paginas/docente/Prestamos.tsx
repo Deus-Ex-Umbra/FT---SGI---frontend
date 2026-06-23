@@ -4,6 +4,7 @@ import type { PropsPaginaBase } from '@/tipos/paginas';
 import { LayoutPagina } from '@/componentes/layout/layout-pagina';
 import { BarraFiltros } from '@/componentes/layout/barra-filtros';
 import { FormularioCanastaPrestamo } from '@/componentes/paginas/prestamos/dialogo-canasta-prestamo';
+import { DialogoDetallesPrestamo } from '@/componentes/paginas/prestamos/dialogo-detalles-prestamo';
 import { useInventario } from '@/contextos/ContextoInventario';
 import type { EstadoPrestamo, PrestamoCanastaRegistro } from '@/tipos/inventario';
 import { Clock, Check, Play, AlertTriangle, CheckCircle2, CalendarClock, X } from 'lucide-react';
@@ -47,6 +48,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
     const [modalEditarFechas, setModalEditarFechas] = useState<PrestamoCanastaRegistro | null>(null);
     const [modalEditarCanasta, setModalEditarCanasta] = useState<PrestamoCanastaRegistro | null>(null);
     const [mostrarCanasta, setMostrarCanasta] = useState(false);
+    const [prestamoParaVer, setPrestamoParaVer] = useState<PrestamoCanastaRegistro | null>(null);
 
     const canastasDelDocente = useMemo(() => {
         if (!usuarioActual?.id) return [];
@@ -180,6 +182,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                 <th className="px-4 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Fecha préstamo</th>
                                 <th className="px-4 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Fecha devolución</th>
                                 <th className="px-4 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Estado</th>
+                                <th className="px-4 py-2.5 text-center font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -194,6 +197,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                         <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
                                         <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
                                         <td className="px-4 py-3"><Skeleton className="h-4 w-12" /></td>
+                                        <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
                                     </tr>
                                 ))
                             ) : (
@@ -240,11 +244,22 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                     </div>
                                                 )}
                                             </td>
+                                            <td className="px-4 py-2.5 text-center">
+                                                <Boton 
+                                                    type="button"
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    className="h-7 text-[10px] gap-1 px-2 border-slate-200 hover:bg-slate-50 dark:border-slate-800"
+                                                    onClick={() => setPrestamoParaVer(c)}
+                                                >
+                                                    Ver
+                                                </Boton>
+                                            </td>
                                         </tr>
                                     ))}
                                     {lista.length === 0 && (
                                         <tr>
-                                            <td colSpan={8} className="px-4 py-6 text-center text-slate-500 dark:text-slate-400">
+                                            <td colSpan={9} className="px-4 py-6 text-center text-slate-500 dark:text-slate-400">
                                                 {errorCanastas || 'Sin préstamos para esta pestaña.'}
                                             </td>
                                         </tr>
@@ -368,6 +383,13 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                         void cargarCanastas();
                         void recargarDatos();
                     }}
+                />
+            )}
+
+            {prestamoParaVer && (
+                <DialogoDetallesPrestamo
+                    prestamoId={prestamoParaVer.id}
+                    onCerrar={() => setPrestamoParaVer(null)}
                 />
             )}
 
