@@ -2,20 +2,11 @@ import { useMemo, useState } from 'react';
 import { Search, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Materia } from '@/tipos/inventario';
-import type { FormMateria, PropsPaginaBase } from '@/tipos/paginas';
+import type { PropsPaginaBase } from '@/tipos/paginas';
 import { LayoutPagina } from '@/componentes/layout/layout-pagina';
 import { Boton } from '@/componentes/ui/button';
 import { Skeleton } from '@/componentes/ui/skeleton';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/componentes/ui/dialog';
-import { FormularioMateria } from '@/componentes/paginas/materias/formulario-materia';
+import { DialogoMateria } from '@/componentes/paginas/materias/dialogo-materia';
 import { AccionesFilaAdmin } from '@/componentes/paginas/compartido/acciones-fila-admin';
 import { AlertaPermisoAdmin } from '@/componentes/paginas/compartido/alerta-permiso-admin';
 import { FilaTablaVacia } from '@/componentes/paginas/compartido/fila-tabla-vacia';
@@ -23,21 +14,10 @@ import { useInventario } from '@/contextos/ContextoInventario';
 import { useConfirmacion } from '@/contextos/ContextoConfirmacion';
 import { obtenerUsuarioActual } from '@/lib/servicio-autenticacion';
 
-const FORM_INICIAL: FormMateria = {
-    codigo: '',
-    nombre: '',
-    descripcion: '',
-    carrerasIds: [],
-    docentesIds: [],
-};
-
 export const Materias = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
     const {
         materias,
         carreras,
-        docentes,
-        agregarMateria,
-        editarMateria,
         eliminarMateria,
         cargando,
     } = useInventario();
@@ -72,119 +52,16 @@ export const Materias = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
         return [...carreras].sort((a, b) => a.nombre.localeCompare(b.nombre));
     }, [carreras]);
 
-    const docentesOrdenados = useMemo(() => {
-        return [...docentes].sort((a, b) => `${a.apellido} ${a.nombre}`.localeCompare(`${b.apellido} ${b.nombre}`));
-    }, [docentes]);
 
     const [guardando, setGuardando] = useState(false);
 
     const [dlgCrearOpen, setDlgCrearOpen] = useState(false);
-    const [nuevaMateria, setNuevaMateria] = useState<FormMateria>(FORM_INICIAL);
-
     const [dlgEditarOpen, setDlgEditarOpen] = useState(false);
-    const [materiaEdicionId, setMateriaEdicionId] = useState<string | null>(null);
-    const [materiaEdicion, setMateriaEdicion] = useState<FormMateria>(FORM_INICIAL);
+    const [materiaEdicion, setMateriaEdicion] = useState<Materia | undefined>(undefined);
 
     const abrirEdicion = (materia: Materia) => {
-        setMateriaEdicionId(materia.id);
-        setMateriaEdicion({
-            codigo: materia.codigo,
-            nombre: materia.nombre ?? '',
-            descripcion: materia.descripcion ?? '',
-            carrerasIds: [...(materia.carrerasIds ?? [])],
-            docentesIds: [...(materia.docentesIds ?? [])],
-        });
+        setMateriaEdicion(materia);
         setDlgEditarOpen(true);
-    };
-
-    const toggleSeleccion = (ids: string[], id: string) => {
-        if (ids.includes(id)) return ids.filter((v) => v !== id);
-        return [...ids, id];
-    };
-
-    const alternarCarreraNueva = (id: string) => {
-        setNuevaMateria((prev) => ({
-            ...prev,
-            carrerasIds: toggleSeleccion(prev.carrerasIds, id),
-        }));
-    };
-
-    const alternarDocenteNueva = (id: string) => {
-        setNuevaMateria((prev) => ({
-            ...prev,
-            docentesIds: toggleSeleccion(prev.docentesIds, id),
-        }));
-    };
-
-    const alternarCarreraEdicion = (id: string) => {
-        setMateriaEdicion((prev) => ({
-            ...prev,
-            carrerasIds: toggleSeleccion(prev.carrerasIds, id),
-        }));
-    };
-
-    const alternarDocenteEdicion = (id: string) => {
-        setMateriaEdicion((prev) => ({
-            ...prev,
-            docentesIds: toggleSeleccion(prev.docentesIds, id),
-        }));
-    };
-
-    const guardarNuevaMateria = async () => {
-        if (!esAdministrador) return;
-
-        const codigo = nuevaMateria.codigo.trim().toUpperCase();
-        if (!codigo) {
-            toast.error('El código de materia es obligatorio.');
-            return;
-        }
-        if (nuevaMateria.carrerasIds.length === 0) {
-            toast.error('Debes habilitar al menos una carrera.');
-            return;
-        }
-
-        setGuardando(true);
-        try {
-            await agregarMateria({
-                codigo,
-                nombre: nuevaMateria.nombre.trim() || null,
-                descripcion: nuevaMateria.descripcion.trim() || null,
-                carrerasIds: nuevaMateria.carrerasIds,
-                docentesIds: nuevaMateria.docentesIds,
-            });
-            setDlgCrearOpen(false);
-            setNuevaMateria(FORM_INICIAL);
-        } catch (e: any) {
-            toast.error(e?.message ?? 'No se pudo registrar la materia.');
-        } finally {
-            setGuardando(false);
-        }
-    };
-
-    const guardarEdicionMateria = async () => {
-        if (!esAdministrador || !materiaEdicionId) return;
-
-        if (materiaEdicion.carrerasIds.length === 0) {
-            toast.error('Debes habilitar al menos una carrera.');
-            return;
-        }
-
-        setGuardando(true);
-        try {
-            await editarMateria(materiaEdicionId, {
-                nombre: materiaEdicion.nombre.trim() || null,
-                descripcion: materiaEdicion.descripcion.trim() || null,
-                carrerasIds: materiaEdicion.carrerasIds,
-                docentesIds: materiaEdicion.docentesIds,
-            });
-            setDlgEditarOpen(false);
-            setMateriaEdicionId(null);
-            setMateriaEdicion(FORM_INICIAL);
-        } catch (e: any) {
-            toast.error(e?.message ?? 'No se pudo editar la materia.');
-        } finally {
-            setGuardando(false);
-        }
     };
 
     const borrarMateria = async (materia: Materia) => {
@@ -276,39 +153,15 @@ export const Materias = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                         </div>
 
                         {esAdministrador && (
-                            <Dialog open={dlgCrearOpen} onOpenChange={setDlgCrearOpen}>
-                                <DialogTrigger asChild>
-                                    <Boton type="button" size="sm" className="text-xs" disabled={guardando || cargando}>
-                                        Crear materia
-                                    </Boton>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-2xl">
-                                    <DialogHeader>
-                                        <DialogTitle>Registrar materia</DialogTitle>
-                                        <DialogDescription>
-                                            Define código, descripción, carreras habilitadas y docentes asignados.
-                                        </DialogDescription>
-                                    </DialogHeader>
-
-                                    <FormularioMateria
-                                        valores={nuevaMateria}
-                                        carreras={carrerasOrdenadas}
-                                        docentes={docentesOrdenados}
-                                        onCambiar={setNuevaMateria}
-                                        onAlternarCarrera={alternarCarreraNueva}
-                                        onAlternarDocente={alternarDocenteNueva}
-                                    />
-
-                                    <DialogFooter>
-                                        <Boton type="button" variant="outline" onClick={() => setDlgCrearOpen(false)} disabled={guardando}>
-                                            Cerrar
-                                        </Boton>
-                                        <Boton type="button" onClick={() => void guardarNuevaMateria()} disabled={guardando}>
-                                            {guardando ? 'Guardando...' : 'Agregar'}
-                                        </Boton>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
+                            <Boton
+                                type="button"
+                                size="sm"
+                                className="text-xs"
+                                disabled={guardando || cargando}
+                                onClick={() => setDlgCrearOpen(true)}
+                            >
+                                Crear materia
+                            </Boton>
                         )}
                     </div>
 
@@ -386,35 +239,23 @@ export const Materias = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                 </div>
             </div>
 
-            <Dialog open={dlgEditarOpen} onOpenChange={setDlgEditarOpen}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Editar materia</DialogTitle>
-                        <DialogDescription>
-                            Actualiza descripción, carreras habilitadas y docentes asignados.
-                        </DialogDescription>
-                    </DialogHeader>
+            {dlgCrearOpen && (
+                <DialogoMateria
+                    open={dlgCrearOpen}
+                    onOpenChange={setDlgCrearOpen}
+                />
+            )}
 
-                    <FormularioMateria
-                        valores={materiaEdicion}
-                        carreras={carrerasOrdenadas}
-                        docentes={docentesOrdenados}
-                        onCambiar={setMateriaEdicion}
-                        onAlternarCarrera={alternarCarreraEdicion}
-                        onAlternarDocente={alternarDocenteEdicion}
-                        codigoSoloLectura
-                    />
-
-                    <DialogFooter>
-                        <Boton type="button" variant="outline" onClick={() => setDlgEditarOpen(false)} disabled={guardando}>
-                            Cerrar
-                        </Boton>
-                        <Boton type="button" onClick={() => void guardarEdicionMateria()} disabled={guardando || !materiaEdicionId}>
-                            {guardando ? 'Guardando...' : 'Guardar cambios'}
-                        </Boton>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {dlgEditarOpen && (
+                <DialogoMateria
+                    open={dlgEditarOpen}
+                    onOpenChange={(val) => {
+                        setDlgEditarOpen(val);
+                        if (!val) setMateriaEdicion(undefined);
+                    }}
+                    materia={materiaEdicion}
+                />
+            )}
         </LayoutPagina>
     );
 };
