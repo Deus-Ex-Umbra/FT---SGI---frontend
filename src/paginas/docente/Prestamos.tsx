@@ -42,7 +42,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
     const [fechaHasta, setFechaHasta] = useState('');
     const [filtroIdHerramienta, setFiltroIdHerramienta] = useState('');
     
-    const [tabEstado, setTabEstado] = useState<EstadoPrestamo | 'pendiente_docente'>('solicitado');
+    const [tabEstado, setTabEstado] = useState<EstadoPrestamo | 'pendiente_docente'>('pendiente_docente');
     
     const [canastas, setCanastas] = useState<PrestamoCanastaRegistro[]>([]);
     const [cargandoCanastas, setCargandoCanastas] = useState(false);

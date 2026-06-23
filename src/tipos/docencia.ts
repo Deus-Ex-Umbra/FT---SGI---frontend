@@ -55,6 +55,7 @@ export interface SubgrupoPrestamoDocencia {
   nombre?: string | null;
   descripcion?: string | null;
   estudianteIds?: number[] | null;
+  estudiantesDetalles?: { id: number; carnet: string; nombre?: string | null; apellido?: string | null }[] | null;
   responsableEstudianteId?: number | null;
   habilitado: boolean;
   createdAt: string;

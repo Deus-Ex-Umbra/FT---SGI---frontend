@@ -400,7 +400,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
         } else {
             setCarnetsRetenidos([]);
         }
-        if (canasta && esDocente) {
+        if (canasta && (esDocente || esEstudiante)) {
             const counts: Record<number, number> = {};
             (canasta.cosas ?? []).forEach((cosa: any) => {
                 if (cosa.idContenedor) {
@@ -412,7 +412,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
         } else {
             setCantidadesContenedores({});
         }
-    }, [canasta?.id, docentePredeterminado?.id, esDocente]);
+    }, [canasta?.id, docentePredeterminado?.id, esDocente, esEstudiante]);
 
     useEffect(() => {
         if (!esDocente || esEdicion || !docentePredeterminado?.id) return;
@@ -439,7 +439,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     };
 
     const inicialesContenedores = useMemo(() => {
-        if (!canasta || !esDocente) return {};
+        if (!canasta || (!esDocente && !esEstudiante)) return {};
         const counts: Record<number, number> = {};
         (canasta.cosas ?? []).forEach((cosa: any) => {
             if (cosa.idContenedor) {
@@ -762,7 +762,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
 
         const totalContenedores = Object.values(cantidadesContenedores).reduce((a, b) => a + b, 0);
 
-        if (esDocente) {
+        if (esDocente || esEstudiante) {
             if (totalContenedores === 0 && campos.consumibles.length === 0) {
                 setError('La solicitud debe tener al menos un equipo o un material fungible.');
                 return;
@@ -790,7 +790,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                 registrado: equipo.registrado,
             }));
 
-            const payloadContenedores = esDocente
+            const payloadContenedores = (esDocente || esEstudiante)
                 ? Object.entries(cantidadesContenedores)
                     .map(([id, qty]) => ({ idContenedor: Number(id), cantidad: qty }))
                     .filter((c) => c.cantidad > 0)
@@ -803,7 +803,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                     fechaPrestamo: campos.fechaPrestamo,
                     fechaDevolucion: campos.fechaDevolucion || null,
                     observaciones: campos.observaciones,
-                    items: esDocente ? [] : payloadItems,
+                    items: (esDocente || esEstudiante) ? [] : payloadItems,
                     contenedores: payloadContenedores,
                     materiales: campos.consumibles.map(c => ({
                         idLote: c.idLote || null,
@@ -819,7 +819,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                     carnetEstudiante: campos.carnetsEstudiantes[0] || '',
                     carnetsEstudiantes: campos.carnetsEstudiantes,
                     idDocente: Number(campos.idDocente),
-                    items: esDocente ? [] : payloadItems,
+                    items: (esDocente || esEstudiante) ? [] : payloadItems,
                     contenedores: payloadContenedores,
                     materiales: campos.consumibles.map(c => ({
                         idLote: c.idLote || null,
@@ -999,7 +999,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     };
 
     const renderFijosSeccion = () => {
-        if (esDocente) {
+        if (esDocente || esEstudiante) {
             return renderSeccionContenedoresDocente();
         }
         return (
@@ -1071,7 +1071,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     };
 
     const renderFungiblesSeccion = () => {
-        if (esDocente) {
+        if (esDocente || esEstudiante) {
             return renderSeccionMaterialesDocente();
         }
         return (
@@ -1316,13 +1316,16 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                                             }
                                             const sub = subgruposMateria.find(s => s.id === val);
                                             if (sub) {
-                                                const integranteCarnets = (sub.estudianteIds ?? [])
-                                                    .map(id => estudiantes.find(est => Number(est.id) === id)?.carnet)
-                                                    .filter((c): c is string => !!c);
+                                                const integranteCarnets = sub.estudiantesDetalles
+                                                    ? sub.estudiantesDetalles.map(e => e.carnet)
+                                                    : (sub.estudianteIds ?? [])
+                                                        .map(id => estudiantes.find(est => Number(est.id) === id)?.carnet)
+                                                        .filter((c): c is string => !!c);
                                                 
                                                 const respEstId = Number(sub.responsableEstudianteId);
-                                                const respEst = estudiantes.find(est => Number(est.id) === respEstId);
-                                                const respCarnet = respEst?.carnet || integranteCarnets[0] || '';
+                                                const respCarnet = (sub.estudiantesDetalles?.find(e => e.id === respEstId)?.carnet) || 
+                                                    estudiantes.find(est => Number(est.id) === respEstId)?.carnet || 
+                                                    integranteCarnets[0] || '';
 
                                                 setCarnetsRetenidos(integranteCarnets);
                                                 setCampos(prev => {
@@ -1537,11 +1540,11 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                     )}
                     <div className="flex flex-col gap-2 rounded-md border border-slate-200 p-3 dark:border-slate-700">
                         <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Docente *</Label>
-                        {esDocente ? (
+                        {esDocente || esEstudiante ? (
                             <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300">
-                                {docentePredeterminado
-                                    ? `Asignado automáticamente: ${nombreDocente(docentePredeterminado.id)}`
-                                    : 'No se encontró tu perfil docente asociado.'}
+                                {esEstudiante ? 
+                                    (campos.idDocente ? `Asignado automáticamente: ${nombreDocente(String(campos.idDocente))}` : 'Selecciona un grupo para asignar automáticamente a su docente.') :
+                                    (docentePredeterminado ? `Asignado automáticamente: ${nombreDocente(docentePredeterminado.id)}` : 'No se encontró tu perfil docente asociado.')}
                             </div>
                         ) : (
                             <>
