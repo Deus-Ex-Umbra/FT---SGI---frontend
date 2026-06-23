@@ -53,6 +53,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState('');
     const [herramientaSeleccionadaId, setHerramientaSeleccionadaId] = useState('');
+    const [fungibleSeleccionadoId, setFungibleSeleccionadoId] = useState('');
     const { materiales, contenedoresMateriales } = useInventario();
     const [misInventarios, setMisInventarios] = useState<Array<{ id: number; nombre: string; puedeEditarFungibles?: boolean; puedeEditarFijos?: boolean }>>([]);
 
@@ -68,7 +69,7 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
         cargar();
     }, []);
 
-    const tienePermisoFungibles = useMemo(() => {
+    const idInventarioCalculado = useMemo(() => {
         let idInv: number | null = canasta.idInventario ? Number(canasta.idInventario) : null;
         if (!idInv && canasta.cosas && canasta.cosas.length > 0) {
             for (const cosa of canasta.cosas) {
@@ -88,7 +89,6 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                 }
             }
         }
-
         if (!idInv && canasta.consumibles && canasta.consumibles.length > 0) {
             for (const cons of canasta.consumibles) {
                 if (cons.idActivoFungible) {
@@ -107,60 +107,25 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                 }
             }
         }
-        
-        if (!idInv) return false;
-        const inv = misInventarios.find(i => Number(i.id) === Number(idInv));
+        return idInv;
+    }, [canasta, herramientas, materiales]);
+
+    const tienePermisoFungibles = useMemo(() => {
+        if (!idInventarioCalculado) return false;
+        const inv = misInventarios.find(i => Number(i.id) === Number(idInventarioCalculado));
         return inv ? inv.puedeEditarFungibles === true : false;
-    }, [canasta, herramientas, materiales, misInventarios]);
+    }, [idInventarioCalculado, misInventarios]);
 
     const tienePermisoFijos = useMemo(() => {
-        let idInv: number | null = canasta.idInventario ? Number(canasta.idInventario) : null;
-        if (!idInv && canasta.cosas && canasta.cosas.length > 0) {
-            for (const cosa of canasta.cosas) {
-                if (cosa.idHerramienta) {
-                    const h = herramientas.find(it => String(it.id) === String(cosa.idHerramienta));
-                    if (h?.idInventario) {
-                        idInv = Number(h.idInventario);
-                        break;
-                    }
-                }
-                if (cosa.idContenedor) {
-                    const h = herramientas.find(it => String(it.contenedorId) === String(cosa.idContenedor));
-                    if (h?.idInventario) {
-                        idInv = Number(h.idInventario);
-                        break;
-                    }
-                }
-            }
-        }
-        if (!idInv && canasta.consumibles && canasta.consumibles.length > 0) {
-            for (const cons of canasta.consumibles) {
-                if (cons.idActivoFungible) {
-                    const m = materiales.find(it => Number(it.id) === Number(cons.idActivoFungible));
-                    if (m?.idInventario) {
-                        idInv = Number(m.idInventario);
-                        break;
-                    }
-                }
-                if (cons.idLote) {
-                    const m = materiales.find(m => m.subinstancias.some(sub => String(sub.id) === String(cons.idLote)));
-                    if (m?.idInventario) {
-                        idInv = Number(m.idInventario);
-                        break;
-                    }
-                }
-            }
-        }
-        
-        if (!idInv) return false;
-        const inv = misInventarios.find(i => Number(i.id) === Number(idInv));
+        if (!idInventarioCalculado) return false;
+        const inv = misInventarios.find(i => Number(i.id) === Number(idInventarioCalculado));
         return inv ? inv.puedeEditarFijos === true : false;
-    }, [canasta, herramientas, materiales, misInventarios]);
+    }, [idInventarioCalculado, misInventarios]);
 
     const tieneFijosSolicitados = canasta.cosas && canasta.cosas.length > 0;
     const tieneFungiblesSolicitados = canasta.consumibles && canasta.consumibles.length > 0;
 
-    const mostrarTabs = tienePermisoFungibles && tienePermisoFijos && tieneFijosSolicitados && tieneFungiblesSolicitados;
+    const mostrarTabs = tienePermisoFungibles && tienePermisoFijos;
 
     const estudiantesCanasta = useMemo(() => {
         const CIs = canasta.estudiantes?.length
@@ -297,6 +262,46 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     }, [canasta.consumibles, canasta.cosas, materiales, contenedoresMateriales]);
 
     const [filasFungibles, setFilasFungibles] = useState<FilaDespachoFungible[]>(filasInicialesFungibles);
+
+    const opcionesLotesFungiblesExtra = useMemo(() => {
+        if (!idInventarioCalculado) return [];
+        return materiales
+            .filter(m => Number(m.idInventario) === Number(idInventarioCalculado))
+            .flatMap(m => m.subinstancias.map(sub => ({
+                value: String(sub.id),
+                label: `[${sub.lote || sub.serie || 'Lote'}] ${m.nombre} - Stock: ${sub.cantidadDisponible}`,
+                idActivoFungible: Number(m.id),
+                material: m.nombre,
+                idContenedor: m.contenedor?.id ?? null,
+                unidad: m.unidad,
+                tipoCantidad: m.tipoCantidad
+            })))
+            .filter(op => !filasFungibles.some(f => String(f.idLote) === op.value));
+    }, [materiales, idInventarioCalculado, filasFungibles]);
+
+    const handleAgregarFungibleExtra = () => {
+        if (!fungibleSeleccionadoId) return;
+        const opcion = opcionesLotesFungiblesExtra.find(o => o.value === fungibleSeleccionadoId);
+        if (!opcion) return;
+
+        setFilasFungibles(prev => [
+            ...prev,
+            {
+                idFila: `extra-${Date.now()}-${Math.random()}`,
+                idPrestamo: null,
+                idLote: opcion.value,
+                idActivoFungible: opcion.idActivoFungible,
+                idContenedor: opcion.idContenedor,
+                lote: opcion.label.split(']')[0].replace('[', ''),
+                material: opcion.material,
+                cantidadSolicitada: 0,
+                cantidadDespachada: 1,
+                unidad: opcion.unidad,
+                tipoCantidad: opcion.tipoCantidad,
+            }
+        ]);
+        setFungibleSeleccionadoId('');
+    };
 
     useEffect(() => {
         setFilasFijos(filasInicialesFijos);
@@ -890,6 +895,47 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
                             )}
                         </tbody>
                     </table>
+                </div>
+                <div className="mt-4 flex flex-col gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/30">
+                    <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Añadir consumibles extra (opcional)
+                    </Label>
+                    <div className="flex w-full items-center gap-2">
+                        <div className="flex-1 max-w-sm">
+                            <Combobox<{ value: string; label: string }>
+                                items={opcionesLotesFungiblesExtra}
+                                value={fungibleSeleccionadoId}
+                                onValueChange={setFungibleSeleccionadoId}
+                                getItemValue={(item) => item.value}
+                                getItemLabel={(item) => item.label}
+                            >
+                                <ComboboxInput
+                                    placeholder="Buscar consumibles/lotes disponibles..."
+                                    showClear
+                                    className="h-9 w-full text-xs shadow-sm bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                                />
+                                <ComboboxContent className="w-[380px]">
+                                    <ComboboxEmpty>No se encontraron consumibles disponibles en este inventario.</ComboboxEmpty>
+                                    <ComboboxList<{ value: string; label: string }> className="max-h-60">
+                                        {(opcion) => (
+                                            <ComboboxItem key={opcion.value} value={opcion.value}>
+                                                {opcion.label}
+                                            </ComboboxItem>
+                                        )}
+                                    </ComboboxList>
+                                </ComboboxContent>
+                            </Combobox>
+                        </div>
+                        <Boton
+                            type="button"
+                            variant="default"
+                            onClick={handleAgregarFungibleExtra}
+                            disabled={!fungibleSeleccionadoId}
+                            className="h-9 px-4 text-xs font-medium"
+                        >
+                            <Plus className="mr-1.5 h-4 w-4" /> Agregar
+                        </Boton>
+                    </div>
                 </div>
             </div>
         );

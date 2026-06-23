@@ -155,7 +155,7 @@ export const DialogoDevolverCanasta = ({ canasta, herramientas, estudiantes, onC
     const tieneFijosSolicitados = canasta.cosas && canasta.cosas.length > 0;
     const tieneFungiblesSolicitados = canasta.consumibles && canasta.consumibles.length > 0;
 
-    const mostrarTabs = tienePermisoFungibles && tienePermisoFijos && tieneFijosSolicitados && tieneFungiblesSolicitados;
+    const mostrarTabs = tienePermisoFungibles && tienePermisoFijos;
     const estudiantesConCarnetRetenido = useMemo(() => {
         const CIs = canasta.carnetsEstudiantes?.length 
             ? canasta.carnetsEstudiantes 

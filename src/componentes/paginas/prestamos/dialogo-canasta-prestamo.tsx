@@ -369,9 +369,14 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                 const herr = herramientas.find((h) => h.id === eq.idHerramienta);
                 return herr && Number(herr.idInventario) === Number(nuevoId);
             });
+            const consumiblesFiltrados = prev.consumibles.filter((cons) => {
+                const mat = materiales.find((m) => m.id === cons.idLote);
+                return mat && Number(mat.idInventario) === Number(nuevoId);
+            });
             return {
                 ...prev,
                 equipos: equiposFiltrados,
+                consumibles: consumiblesFiltrados,
             };
         });
     };
