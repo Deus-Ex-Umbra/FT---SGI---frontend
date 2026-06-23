@@ -29,6 +29,16 @@ export const listarGruposDocencia = async (): Promise<GrupoMateriaDocencia[]> =>
   return resp.json();
 };
 
+export const listarMateriasLideradasDocencia = async (): Promise<GrupoMateriaDocencia[]> => {
+  const resp = await fetch(`${API_BASE}/docencia/materias-lideradas`, {
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!resp.ok) throw new Error('No se pudieron cargar las materias.');
+  return resp.json();
+};
+
 export const listarMateriasAsignadasDocencia = async (): Promise<MateriaAsignadaDocencia[]> => {
   const resp = await fetch(`${API_BASE}/docencia/materias-asignadas`, {
     headers: {

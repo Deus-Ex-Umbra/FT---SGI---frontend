@@ -18,6 +18,10 @@ interface Props {
 }
 
 const configEstado: Record<EstadoPrestamo, { etiqueta: string; clase: string }> = {
+    pendiente_docente: {
+        etiqueta: 'Pendiente Docente',
+        clase: 'text-orange-700 bg-orange-50 border-orange-200 dark:text-orange-400 dark:bg-orange-950 dark:border-orange-855',
+    },
     solicitado: {
         etiqueta: 'Solicitado',
         clase: 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-950 dark:border-amber-855',

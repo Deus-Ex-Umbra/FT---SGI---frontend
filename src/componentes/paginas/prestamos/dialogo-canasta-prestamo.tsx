@@ -15,7 +15,7 @@ import { useInventario } from '@/contextos/ContextoInventario';
 import { cargarContenedoresPorInventarioEnBackend } from '@/lib/servicio-activos';
 import { useCierreSeguro } from '@/hooks/use-cierre-seguro';
 import { normalizarEstadoItem } from '@/utilidades/estados-activo';
-import { listarGruposDocencia, listarSubgruposPrestamoDocencia } from '@/lib/servicio-docencia';
+import { listarGruposDocencia, listarSubgruposPrestamoDocencia, listarMateriasLideradasDocencia } from '@/lib/servicio-docencia';
 import type { GrupoMateriaDocencia, SubgrupoPrestamoDocencia } from '@/tipos/docencia';
 
 const obtenerCodigoMateria = (materia: Pick<GrupoMateriaDocencia, 'sigla' | 'codigoMateria' | 'materia'>) => {
@@ -122,6 +122,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     const usuarioActual = useMemo(() => obtenerUsuarioActual(), []);
     const esAdministrador = usuarioActual?.rol === 'administrador';
     const esDocente = usuarioActual?.rol === 'docente';
+    const esEstudiante = usuarioActual?.rol === 'estudiante';
     const docentePredeterminado = useMemo(() => {
         const correoActual = String(usuarioActual?.correo ?? '').trim().toLowerCase();
         if (!correoActual) return null;
@@ -184,20 +185,25 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
     }, [materias]);
 
     useEffect(() => {
-        if (!esDocente) return;
-        const cargarDatosDocente = async () => {
+        if (!esDocente && !esEstudiante) return;
+        const cargarDatosDocencia = async () => {
             try {
-                const g = await listarGruposDocencia();
-                setGruposMateriaDocente(g);
+                if (esDocente) {
+                    const g = await listarGruposDocencia();
+                    setGruposMateriaDocente(g);
+                } else if (esEstudiante) {
+                    const g = await listarMateriasLideradasDocencia();
+                    setGruposMateriaDocente(g);
+                }
             } catch (err) {
-                console.error('Error al cargar materias del docente:', err);
+                console.error('Error al cargar materias:', err);
             }
         };
-        void cargarDatosDocente();
-    }, [esDocente]);
+        void cargarDatosDocencia();
+    }, [esDocente, esEstudiante]);
 
     useEffect(() => {
-        if (!esDocente || !materiaSeleccionadaId) {
+        if ((!esDocente && !esEstudiante) || !materiaSeleccionadaId) {
             setSubgruposMateria([]);
             return;
         }
@@ -214,7 +220,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
             }
         };
         void cargarSubgrupos();
-    }, [esDocente, materiaSeleccionadaId]);
+    }, [esDocente, esEstudiante, materiaSeleccionadaId]);
     const [nuevoDocente, setNuevoDocente] = useState<NuevoDocenteForm>(NUEVO_DOCENTE_INICIAL);
     const [errorAlta, setErrorAlta] = useState('');
     const [guardandoAlta, setGuardandoAlta] = useState(false);
@@ -1231,7 +1237,7 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                         </div>
                     )}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    {esDocente && !esEdicion ? (
+                    {(esDocente || esEstudiante) && !esEdicion ? (
                         <div className="flex flex-col gap-3 rounded-md border border-slate-200 p-3 dark:border-slate-700 bg-slate-50/20">
                             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Asignar Estudiantes *</label>
                             
@@ -1326,11 +1332,22 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                                                     if (!obs.includes(tag)) {
                                                         obs = obs ? `${tag} ${obs}` : tag;
                                                     }
+                                                    
+                                                    let idDoc = prev.idDocente;
+                                                    if (esEstudiante) {
+                                                        const grupoActual = gruposActivos.find(g => g.id === materiaSeleccionadaId);
+                                                        if (grupoActual?.docenteUsuario?.correo) {
+                                                            const doc = docentes.find(d => d.correo?.toLowerCase() === grupoActual.docenteUsuario?.correo?.toLowerCase());
+                                                            if (doc) idDoc = String(doc.id);
+                                                        }
+                                                    }
+
                                                     return {
                                                         ...prev,
                                                         carnetsEstudiantes: integranteCarnets,
                                                         carnetEstudiante: respCarnet,
-                                                        observaciones: obs
+                                                        observaciones: obs,
+                                                        idDocente: idDoc
                                                     };
                                                 });
                                             }
@@ -1418,43 +1435,47 @@ export const FormularioCanastaPrestamo = ({ onCerrar, canasta, onGuardado }: Pro
                         </div>
                     ) : (
                         <div className="flex flex-col gap-2 rounded-md border border-slate-200 p-3 dark:border-slate-700">
-                            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Estudiante *</label>
-                            <Combobox<OpcionSelector>
-                                items={opcionesEstudiantesCombobox}
-                                value={estudianteSeleccionado}
-                                onValueChange={(value) => {
-                                    if (value === OPCION_REGISTRAR_ESTUDIANTE) {
-                                        setEstudianteSeleccionado('');
-                                        abrirAlta('estudiante');
-                                        return;
-                                    }
-                                    setEstudianteSeleccionado(value);
-                                }}
-                                getItemValue={(opcion) => opcion.value}
-                                getItemLabel={(opcion) => opcion.label}
-                            >
-                                <ComboboxInput placeholder="Buscar estudiante..." showClear />
-                                <ComboboxContent>
-                                    <ComboboxEmpty>No se encontraron estudiantes.</ComboboxEmpty>
-                                    <ComboboxList<OpcionSelector>>
-                                        {(opcion) => (
-                                            <ComboboxItem
-                                                key={opcion.value}
-                                                value={opcion.value}
-                                                className={opcion.value === OPCION_REGISTRAR_ESTUDIANTE ? 'border-t text-blue-600 font-medium dark:text-blue-400' : undefined}
-                                            >
-                                                {opcion.label}
-                                            </ComboboxItem>
-                                        )}
-                                    </ComboboxList>
-                                </ComboboxContent>
-                            </Combobox>
-                            <div className="flex items-center justify-between gap-2">
-                                <p className="text-[11px] text-slate-500 dark:text-slate-400">Añadir confirma la selección actual en la canasta.</p>
-                                <Boton type="button" onClick={agregarEstudianteSeleccionado} disabled={!estudianteSeleccionado} className="h-8 px-3 text-xs font-semibold">
-                                    Añadir
-                                </Boton>
-                            </div>
+                            {esEstudiante ? null : <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Estudiante *</label>}
+                            {esEstudiante ? null : (
+                                <>
+                                    <Combobox<OpcionSelector>
+                                        items={opcionesEstudiantesCombobox}
+                                        value={estudianteSeleccionado}
+                                        onValueChange={(value) => {
+                                            if (value === OPCION_REGISTRAR_ESTUDIANTE) {
+                                                setEstudianteSeleccionado('');
+                                                abrirAlta('estudiante');
+                                                return;
+                                            }
+                                            setEstudianteSeleccionado(value);
+                                        }}
+                                        getItemValue={(opcion) => opcion.value}
+                                        getItemLabel={(opcion) => opcion.label}
+                                    >
+                                        <ComboboxInput placeholder="Buscar estudiante..." showClear />
+                                        <ComboboxContent>
+                                            <ComboboxEmpty>No se encontraron estudiantes.</ComboboxEmpty>
+                                            <ComboboxList<OpcionSelector>>
+                                                {(opcion) => (
+                                                    <ComboboxItem
+                                                        key={opcion.value}
+                                                        value={opcion.value}
+                                                        className={opcion.value === OPCION_REGISTRAR_ESTUDIANTE ? 'border-t text-blue-600 font-medium dark:text-blue-400' : undefined}
+                                                    >
+                                                        {opcion.label}
+                                                    </ComboboxItem>
+                                                )}
+                                            </ComboboxList>
+                                        </ComboboxContent>
+                                    </Combobox>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-[11px] text-slate-500 dark:text-slate-400">Añadir confirma la selección actual en la canasta.</p>
+                                        <Boton type="button" onClick={agregarEstudianteSeleccionado} disabled={!estudianteSeleccionado} className="h-8 px-3 text-xs font-semibold">
+                                            Añadir
+                                        </Boton>
+                                    </div>
+                                </>
+                            )}
                             <div className="space-y-2 mt-2">
                                 {campos.carnetsEstudiantes.length > 0 ? (
                                     <>

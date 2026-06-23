@@ -369,6 +369,25 @@ export const rechazarCanastaEnBackend = async (id: string, motivo: string): Prom
     return resp.json();
 };
 
+export const aprobarCanastaDocenteEnBackend = async (id: string): Promise<any> => {
+    const resp = await fetch(`${API_BASE}/prestamos/canastas/${id}/aprobar-docente`, {
+        method: 'PUT',
+        headers: authHeaders(),
+    });
+    if (!resp.ok) throw new Error(await resp.text() || 'No se pudo aprobar la canasta del estudiante');
+    return resp.json();
+};
+
+export const rechazarCanastaDocenteEnBackend = async (id: string, motivo: string): Promise<any> => {
+    const resp = await fetch(`${API_BASE}/prestamos/canastas/${id}/rechazar-docente`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ motivo }),
+    });
+    if (!resp.ok) throw new Error(await resp.text() || 'No se pudo rechazar la canasta del estudiante');
+    return resp.json();
+};
+
 export const despacharCanastaEnBackend = async (id: string, payload: {
     equipos?: Array<{ idPrestamo?: string | number | null; idHerramienta: string | null; registrado: boolean; estadoFisicoEntrega?: string }>;
     consumibles?: Array<{ idLote: string; cantidad: number }>;

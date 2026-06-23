@@ -10,7 +10,7 @@ export type EstadoHerramienta =
     | 'danado';
 
 export type EstadoFisicoItemActivo = 'bueno' | 'regular' | 'malo';
-export type EstadoPrestamo = 'solicitado' | 'aceptado' | 'rechazado' | 'despachado' | 'vencido' | 'devuelto' | 'devuelto_fuera_de_fecha_limite' | 'pendiente' | 'activo';
+export type EstadoPrestamo = 'pendiente_docente' | 'solicitado' | 'aceptado' | 'rechazado' | 'despachado' | 'vencido' | 'devuelto' | 'devuelto_fuera_de_fecha_limite' | 'pendiente' | 'activo';
 
 export interface SubinstanciaHerramienta {
     id: string;

@@ -19,10 +19,13 @@ import { obtenerUsuarioActual } from '@/lib/servicio-autenticacion';
 import {
     cargarCanastasPrestamoDesdeBackend,
     extenderCanastaPrestamoEnBackend,
+    aprobarCanastaDocenteEnBackend,
+    rechazarCanastaDocenteEnBackend,
 } from '@/lib/servicio-prestamos';
 
 const colorEstadoCanasta = (estado: EstadoPrestamo) => {
     if (estado === 'solicitado') return 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950/30 dark:border-amber-850';
+    if (estado === 'pendiente_docente') return 'text-orange-700 bg-orange-50 border-orange-200 dark:text-orange-300 dark:bg-orange-950/30 dark:border-orange-850';
     if (estado === 'aceptado') return 'text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-300 dark:bg-purple-950/30 dark:border-purple-800';
     if (estado === 'rechazado') return 'text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-300 dark:bg-rose-950/30 dark:border-rose-800';
     if (estado === 'despachado' || estado === 'activo' || estado === 'pendiente') return 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-300 dark:bg-blue-950/30 dark:border-blue-800';
@@ -39,7 +42,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
     const [fechaHasta, setFechaHasta] = useState('');
     const [filtroIdHerramienta, setFiltroIdHerramienta] = useState('');
     
-    const [tabEstado, setTabEstado] = useState<EstadoPrestamo>('solicitado');
+    const [tabEstado, setTabEstado] = useState<EstadoPrestamo | 'pendiente_docente'>('solicitado');
     
     const [canastas, setCanastas] = useState<PrestamoCanastaRegistro[]>([]);
     const [cargandoCanastas, setCargandoCanastas] = useState(false);
@@ -131,6 +134,11 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
         [canastasFiltradas],
     );
 
+    const canastasPendientesDocente = useMemo(
+        () => canastasFiltradas.filter((c) => c.estado === 'pendiente_docente'),
+        [canastasFiltradas],
+    );
+
     const canastasAceptadas = useMemo(
         () => canastasFiltradas.filter((c) => c.estado === 'aceptado'),
         [canastasFiltradas],
@@ -160,6 +168,28 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
         () => canastasFiltradas.filter((c) => c.estado === 'rechazado'),
         [canastasFiltradas],
     );
+
+    const handleAprobarDocente = async (id: string | number) => {
+        try {
+            await aprobarCanastaDocenteEnBackend(String(id));
+            toast.success(`Solicitud #${id} aprobada. Ahora pasa a Inventario.`);
+            void cargarCanastas(true);
+        } catch (err: any) {
+            toast.error(err?.message ?? 'Error al aprobar solicitud.');
+        }
+    };
+
+    const handleRechazarDocente = async (id: string | number) => {
+        const motivo = prompt('Ingresa el motivo del rechazo (opcional):');
+        if (motivo === null) return;
+        try {
+            await rechazarCanastaDocenteEnBackend(String(id), motivo);
+            toast.success(`Solicitud #${id} rechazada.`);
+            void cargarCanastas(true);
+        } catch (err: any) {
+            toast.error(err?.message ?? 'Error al rechazar solicitud.');
+        }
+    };
 
     const renderCanastas = (lista: PrestamoCanastaRegistro[]) => {
         return (
@@ -245,15 +275,39 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                                                 )}
                                             </td>
                                             <td className="px-4 py-2.5 text-center">
-                                                <Boton 
-                                                    type="button"
-                                                    variant="outline" 
-                                                    size="sm" 
-                                                    className="h-7 text-[10px] gap-1 px-2 border-slate-200 hover:bg-slate-50 dark:border-slate-800"
-                                                    onClick={() => setPrestamoParaVer(c)}
-                                                >
-                                                    Ver
-                                                </Boton>
+                                                <div className="flex items-center justify-center gap-1">
+                                                    {c.estado === 'pendiente_docente' && (
+                                                        <>
+                                                            <Boton 
+                                                                type="button"
+                                                                variant="default" 
+                                                                size="sm" 
+                                                                className="h-7 text-[10px] gap-1 px-2 bg-green-600 hover:bg-green-700"
+                                                                onClick={() => handleAprobarDocente(c.id)}
+                                                            >
+                                                                Aprobar
+                                                            </Boton>
+                                                            <Boton 
+                                                                type="button"
+                                                                variant="destructive" 
+                                                                size="sm" 
+                                                                className="h-7 text-[10px] gap-1 px-2"
+                                                                onClick={() => handleRechazarDocente(c.id)}
+                                                            >
+                                                                Rechazar
+                                                            </Boton>
+                                                        </>
+                                                    )}
+                                                    <Boton 
+                                                        type="button"
+                                                        variant="outline" 
+                                                        size="sm" 
+                                                        className="h-7 text-[10px] gap-1 px-2 border-slate-200 hover:bg-slate-50 dark:border-slate-800"
+                                                        onClick={() => setPrestamoParaVer(c)}
+                                                    >
+                                                        Ver
+                                                    </Boton>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -287,8 +341,12 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
             onRecargar={() => { void cargarCanastas(); void recargarDatos(); }}
             recargando={cargandoCanastas || cargando}
         >
-            <Tabs value={tabEstado} onValueChange={(val) => setTabEstado(val as EstadoPrestamo)}>
+            <Tabs value={tabEstado} onValueChange={(val) => setTabEstado(val as EstadoPrestamo | 'pendiente_docente')}>
                 <TabsList className="flex flex-wrap gap-1 p-1 rounded-lg bg-slate-100/60 dark:bg-slate-800/40 w-full justify-start h-auto">
+                    <TabsTrigger value="pendiente_docente" className="gap-1.5 text-sm font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
+                        <Clock className="h-3.5 w-3.5 text-orange-500" />
+                        Solicitudes Estudiantes ({canastasPendientesDocente.length})
+                    </TabsTrigger>
                     <TabsTrigger value="solicitado" className="gap-1.5 text-sm font-semibold px-3 py-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950">
                         <Clock className="h-3.5 w-3.5 text-amber-500" />
                         Solicitado ({canastasSolicitadas.length})
@@ -353,6 +411,7 @@ export const Prestamos = ({ onNavegar, onCerrarSesion }: PropsPaginaBase) => {
                     </div>
                 </div>
 
+                <TabsContent value="pendiente_docente" className="mt-4">{renderCanastas(canastasPendientesDocente)}</TabsContent>
                 <TabsContent value="solicitado" className="mt-4">{renderCanastas(canastasSolicitadas)}</TabsContent>
                 <TabsContent value="aceptado" className="mt-4">{renderCanastas(canastasAceptadas)}</TabsContent>
                 <TabsContent value="despachado" className="mt-4">{renderCanastas(canastasDespachadas)}</TabsContent>
