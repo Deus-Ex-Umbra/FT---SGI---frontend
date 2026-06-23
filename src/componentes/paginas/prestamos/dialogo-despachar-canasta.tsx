@@ -113,21 +113,45 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
     const tienePermisoFungibles = useMemo(() => {
         const usuario = obtenerUsuarioActual();
         if (usuario?.rol === 'administrador') return true;
-        if (!idInventarioCalculado) return false;
-        if (usuario?.id_inventario === Number(idInventarioCalculado)) return usuario?.puedeEditarFungibles === true;
         
-        const inv = misInventarios.find(i => Number(i.id) === Number(idInventarioCalculado));
-        return inv ? inv.puedeEditarFungibles === true : false;
+        let idAUsar = idInventarioCalculado;
+        if (!idAUsar && misInventarios.length === 1) {
+            idAUsar = misInventarios[0].id;
+        }
+        if (!idAUsar && usuario?.id_inventario) {
+            idAUsar = usuario.id_inventario;
+        }
+
+        if (!idAUsar) return false;
+
+        const inv = misInventarios.find(i => Number(i.id) === Number(idAUsar));
+        if (inv?.puedeEditarFungibles !== undefined) return inv.puedeEditarFungibles === true;
+        
+        if (usuario?.id_inventario === Number(idAUsar)) return usuario?.puedeEditarFungibles === true;
+        
+        return false;
     }, [idInventarioCalculado, misInventarios]);
 
     const tienePermisoFijos = useMemo(() => {
         const usuario = obtenerUsuarioActual();
         if (usuario?.rol === 'administrador') return true;
-        if (!idInventarioCalculado) return false;
-        if (usuario?.id_inventario === Number(idInventarioCalculado)) return usuario?.puedeEditarFijos === true;
         
-        const inv = misInventarios.find(i => Number(i.id) === Number(idInventarioCalculado));
-        return inv ? inv.puedeEditarFijos === true : false;
+        let idAUsar = idInventarioCalculado;
+        if (!idAUsar && misInventarios.length === 1) {
+            idAUsar = misInventarios[0].id;
+        }
+        if (!idAUsar && usuario?.id_inventario) {
+            idAUsar = usuario.id_inventario;
+        }
+
+        if (!idAUsar) return false;
+
+        const inv = misInventarios.find(i => Number(i.id) === Number(idAUsar));
+        if (inv?.puedeEditarFijos !== undefined) return inv.puedeEditarFijos === true;
+        
+        if (usuario?.id_inventario === Number(idAUsar)) return usuario?.puedeEditarFijos === true;
+        
+        return false;
     }, [idInventarioCalculado, misInventarios]);
 
     const tieneFijosSolicitados = canasta.cosas && canasta.cosas.length > 0;
