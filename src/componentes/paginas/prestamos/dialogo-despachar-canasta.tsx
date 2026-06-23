@@ -83,23 +83,9 @@ export const DialogoDespacharCanasta = ({ canasta, herramientas, estudiantes, on
         return inv ? inv.puedeEditarFungibles === true : false;
     }, [canasta, herramientas, materiales, misInventarios]);
 
-    const tienePermisoFijos = useMemo(() => {
-        let idInv: number | null = null;
-        if (canasta.cosas && canasta.cosas.length > 0) {
-            const h = herramientas.find(it => it.id === canasta.cosas?.[0]?.idHerramienta);
-            if (h?.idInventario) idInv = Number(h.idInventario);
-        }
-        if (!idInv && canasta.consumibles && canasta.consumibles.length > 0) {
-            const m = materiales.find(it => it.id === canasta.consumibles?.[0]?.idLote);
-            if (m?.idInventario) idInv = Number(m.idInventario);
-        }
-        
-        if (!idInv) return false;
-        const inv = misInventarios.find(i => Number(i.id) === Number(idInv));
-        return inv ? inv.puedeEditarFijos === true : false;
-    }, [canasta, herramientas, materiales, misInventarios]);
 
-    const mostrarTabs = tienePermisoFungibles && tienePermisoFijos;
+
+    const mostrarTabs = tienePermisoFungibles;
 
     const estudiantesCanasta = useMemo(() => {
         const CIs = canasta.estudiantes?.length
